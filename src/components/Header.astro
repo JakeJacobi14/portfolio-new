@@ -1,0 +1,28 @@
+---
+---
+<header class="header">
+  <a class="home mono" href="/">Jake Jacobi</a>
+  <nav aria-label="Primary" data-build="nav">
+    <ul class="mono">
+      <li><a href="#work">Work</a></li>
+      <li><a href="#about">About</a></li>
+      <li><a href="#contact">Contact</a></li>
+    </ul>
+  </nav>
+</header>
+
+<style>
+  .header {
+    max-width: var(--page-max);
+    margin: 0 auto;
+    padding: var(--space-5) var(--gutter);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--space-4);
+  }
+  .home { text-decoration: none; }
+  ul { display: flex; gap: var(--space-5); }
+  a { text-decoration-color: transparent; }
+  a:hover, a:focus-visible { text-decoration-color: currentColor; }
+</style>

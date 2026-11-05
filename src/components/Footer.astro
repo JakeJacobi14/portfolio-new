@@ -1,0 +1,35 @@
+---
+---
+<footer class="footer mono">
+  <p>Built with Claude Code. The process is documented in the repo.</p>
+  <button type="button" class="replay" data-replay>Replay build</button>
+</footer>
+
+<style>
+  .footer {
+    max-width: var(--page-max);
+    margin: 0 auto;
+    padding: var(--space-6) var(--gutter) var(--space-7);
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-4);
+    flex-wrap: wrap;
+    color: var(--muted);
+  }
+  .replay {
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.2em;
+    transition: color var(--dur-micro) var(--ease);
+  }
+  .replay:hover { color: var(--accent); }
+  @media (prefers-reduced-motion: reduce) {
+    .replay { display: none; }
+  }
+</style>

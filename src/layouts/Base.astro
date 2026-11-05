@@ -1,0 +1,48 @@
+---
+import "../styles/global.css";
+import BuildIn from "../components/BuildIn.astro";
+import PaletteBar from "../components/PaletteBar.astro";
+
+interface Props { title: string; description?: string }
+const { title, description = "Jake Jacobi, computer science student at Purdue." } = Astro.props;
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Schibsted+Grotesk:wght@400..700&display=swap"
+    />
+    <!-- Runs before paint: apply palette candidate, decide whether the build-in plays. -->
+    <script is:inline>
+      (() => {
+        const d = document.documentElement;
+        const palettes = ["forest", "ember", "ink", "night"];
+        try {
+          const p = new URLSearchParams(location.search).get("palette") || localStorage.getItem("palette");
+          if (palettes.includes(p)) { d.dataset.palette = p; localStorage.setItem("palette", p); }
+        } catch {}
+        let seen = false;
+        try { seen = sessionStorage.getItem("built") === "1"; } catch {}
+        if (!matchMedia("(prefers-reduced-motion: reduce)").matches && !seen) {
+          d.classList.add("is-building");
+          // Fail-safe: never leave content hidden if the script doesn't run.
+          window.__buildFailsafe = setTimeout(() => d.classList.remove("is-building"), 3500);
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <a class="skip-link mono" href="#main">Skip to content</a>
+    <slot />
+    <BuildIn />
+    <PaletteBar />
+  </body>
+</html>
