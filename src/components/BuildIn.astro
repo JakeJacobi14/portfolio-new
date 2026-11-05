@@ -1,6 +1,7 @@
 ---
-// The signature moment (DESIGN.md §1, §7, ADR 0006): four agents make everything in the
-// first screen. They type the text, draw the lines, and drag and resize the boxes.
+// The signature moment (DESIGN.md §1, §7, ADR 0006, ADR 0007): four agents make the page.
+// They build the first screen on load, then each later section as it scrolls into view,
+// by typing the text, drawing the lines, and dragging and resizing the boxes.
 const agents = [0, 1, 2, 3];
 ---
 <div class="bi-overlay" data-bi-overlay aria-hidden="true" hidden>
@@ -19,7 +20,7 @@ const agents = [0, 1, 2, 3];
   .is-building [data-drag] { opacity: 0; }
   /* While building: list hairlines are drawn by an agent instead. */
   .is-building [data-row],
-  .b-active [data-row]:not([data-row-static]) { border-color: transparent !important; }
+  .b-active [data-row]:not([data-built]) { border-color: transparent !important; }
 
   /* Overlay internals are global because some of them are created by the script. */
   .bi-overlay {
@@ -82,10 +83,10 @@ const agents = [0, 1, 2, 3];
   import { animate } from "motion/mini";
 
   const EASE: [number, number, number, number] = [0.2, 0, 0, 1]; // --ease
-  const MS_PER_CHAR = { display: 90, label: 45, body: 22 }; // DESIGN.md §7
+  const MS_PER_CHAR = { display: 70, label: 35, body: 17 }; // DESIGN.md §7
 
   type Box = { x: number; y: number; w: number; h: number };
-  type Run = { aborted: boolean };
+  type Task = (a: Agent) => Promise<void>;
   class Aborted extends Error {}
 
   const root = document.documentElement;
@@ -95,71 +96,120 @@ const agents = [0, 1, 2, 3];
   const caretEls = [...overlay.querySelectorAll<HTMLElement>("[data-bi-caret]")];
   const reduce = matchMedia("(prefers-reduced-motion: reduce)");
 
-  const live = new Set<{ cancel(): void }>();
-  const typed = new Map<HTMLElement, { text: string; spans: HTMLSpanElement[] }>();
-  const made: HTMLElement[] = [];
-  let current: Run | null = null;
-
-  const q = <T extends Element = HTMLElement>(s: string) => document.querySelector<T>(s)!;
-  const qa = <T extends Element = HTMLElement>(s: string) => [...document.querySelectorAll<T>(s)];
-  /** Page (document) coordinates, so the overlay stays aligned if the page scrolls. */
+  const q = <T extends Element = HTMLElement>(s: string, from: ParentNode = document) => from.querySelector<T>(s);
+  const qa = <T extends Element = HTMLElement>(s: string, from: ParentNode = document) => [...from.querySelectorAll<T>(s)];
+  /** Page (document) coordinates, so the overlay stays aligned while the page scrolls. */
   const box = (el: Element): Box => {
     const r = el.getBoundingClientRect();
     return { x: r.left + scrollX, y: r.top + scrollY, w: r.width, h: r.height };
   };
   const travel = (dist: number) => Math.min(0.7, Math.max(0.3, dist / 1600));
 
-  class Agent {
-    x = 0;
-    y = 0;
-    constructor(private run: Run, private el: SVGElement, private caret: HTMLElement) {}
+  /** One build of the page: shared state, a queue of tasks, and the agents that do them. */
+  class Director {
+    aborted = false;
+    queue: Task[] = [];
+    pendingUnits = 0;
+    busy = 0;
+    live = new Set<{ cancel(): void }>();
+    typed = new Map<HTMLElement, string>();
+    lines: HTMLElement[] = [];
+    rowLines = new Map<HTMLElement, HTMLElement[]>();
+    agents: Agent[] = [];
+    stopListening: (() => void) | null = null;
+    private wakers: (() => void)[] = [];
+    private idlers: (() => void)[] = [];
 
-    check() { if (this.run.aborted) throw new Aborted(); }
-    async wait(ms: number) { await new Promise((r) => setTimeout(r, ms)); this.check(); }
+    check() { if (this.aborted) throw new Aborted(); }
+    wake() { for (const w of this.wakers.splice(0)) w(); }
+    push(tasks: Task[]) { this.queue.push(...tasks); this.wake(); }
+    settled() {
+      if (this.busy === 0 && this.queue.length === 0) for (const r of this.idlers.splice(0)) r();
+    }
+    whenIdle() { return new Promise<void>((r) => { this.idlers.push(r); this.settled(); }); }
+    /** Next task, waiting for one if sections are still to come; null when nothing is left. */
+    async next(): Promise<Task | null> {
+      for (;;) {
+        this.check();
+        const t = this.queue.shift();
+        if (t) return t;
+        if (this.pendingUnits === 0) return null;
+        await new Promise<void>((r) => this.wakers.push(r));
+      }
+    }
     async play(el: Element, keyframes: Record<string, unknown>, opts: Record<string, unknown> = {}) {
       this.check();
       const a = animate(el, keyframes as any, { ease: EASE, ...opts });
-      live.add(a);
-      try { await a; } finally { live.delete(a); }
+      this.live.add(a);
+      try { await a; } finally { this.live.delete(a); }
       this.check();
     }
+    updateSkip() { skipBtn.hidden = !this.agents.some((a) => a.present); }
+  }
+
+  class Agent {
+    x = 0;
+    y = 0;
+    present = false;
+    constructor(private d: Director, private el: SVGElement, private caret: HTMLElement) {}
+
+    wait(ms: number) { return new Promise((r) => setTimeout(r, ms)).then(() => this.d.check()); }
+    play(el: Element, kf: Record<string, unknown>, opts?: Record<string, unknown>) { return this.d.play(el, kf, opts); }
 
     place(x: number, y: number) {
       this.x = x; this.y = y;
       this.el.style.transform = `translate(${x}px, ${y}px)`;
     }
-    enter(x: number, y: number) { this.place(x, y); this.el.style.opacity = "1"; }
+    enter(x: number, y: number) {
+      this.place(x, y);
+      this.el.style.opacity = "1";
+      this.present = true;
+      this.d.updateSkip();
+    }
+    /** Come back in from a side edge of the current screen. */
+    arrive() {
+      const left = Math.random() < 0.5;
+      this.enter(left ? -20 : innerWidth + 20, scrollY + innerHeight * (0.3 + Math.random() * 0.5));
+    }
     async move(x: number, y: number, duration = travel(Math.hypot(x - this.x, y - this.y))) {
       const from = `translate(${this.x}px, ${this.y}px)`;
       this.place(x, y);
       await this.play(this.el, { transform: [from, this.el.style.transform] }, { duration });
     }
-    async leave(x: number, y: number) {
+    async leave() {
+      const x = this.x - scrollX < innerWidth / 2 ? -40 : innerWidth + 40;
       this.el.style.opacity = "0";
-      await Promise.all([this.move(x, y, 0.6), this.play(this.el, { opacity: [1, 0] }, { duration: 0.6 })]);
+      await Promise.all([this.move(x, this.y, 0.6), this.play(this.el, { opacity: [1, 0] }, { duration: 0.6 })]);
+      this.present = false;
+      this.d.updateSkip();
     }
 
     /** Type an element's text one character at a time behind a caret. */
-    async type(el: HTMLElement, msPerChar: number) {
-      const t = typed.get(el);
-      if (!t?.spans.length) return;
-      const first = box(t.spans[0]);
+    async type(el: HTMLElement | null, msPerChar: number) {
+      if (!el) return;
+      const text = this.d.typed.get(el);
+      const spans = [...el.children] as HTMLElement[];
+      if (text === undefined || !spans.length) return;
+      const first = box(spans[0]);
       await this.move(first.x, first.y + first.h + 2);
       await this.wait(50);
       const c = this.caret;
       c.style.opacity = "1";
-      for (let i = 0; i < t.spans.length; i++) {
-        t.spans[i].style.visibility = "visible";
-        const r = box(t.spans[i]);
+      for (let i = 0; i < spans.length; i++) {
+        spans[i].style.visibility = "visible";
+        const r = box(spans[i]);
         c.style.height = `${r.h}px`;
         c.style.transform = `translate(${r.x + r.w}px, ${r.y}px)`;
         // The cursor drifts along with the caret, a word at a time.
-        if (t.text[i] === " " || i === t.spans.length - 1) {
+        if (text[i] === " " || i === spans.length - 1) {
           this.move(r.x + r.w, r.y + r.h + 2, 0.25).catch(() => {});
         }
         await this.wait(msPerChar * (0.6 + Math.random() * 0.8));
       }
       c.style.opacity = "0";
+      // Done: put the plain text back.
+      el.textContent = text;
+      this.d.typed.delete(el);
       await this.wait(50);
     }
 
@@ -175,20 +225,21 @@ const agents = [0, 1, 2, 3];
       const from = h ? "scaleX(0)" : "scaleY(0)";
       line.style.transform = from;
       overlay.append(line);
-      made.push(line);
+      this.d.lines.push(line);
       await this.move(x1, y1);
-      const d = Math.min(0.6, Math.max(0.35, Math.hypot(x2 - x1, y2 - y1) / 2000));
+      const dur = Math.min(0.6, Math.max(0.35, Math.hypot(x2 - x1, y2 - y1) / 2000));
       line.style.transform = "none";
       await Promise.all([
-        this.play(line, { transform: [from, h ? "scaleX(1)" : "scaleY(1)"] }, { duration: d }),
-        this.move(x2, y2, d),
+        this.play(line, { transform: [from, h ? "scaleX(1)" : "scaleY(1)"] }, { duration: dur }),
+        this.move(x2, y2, dur),
       ]);
+      return line;
     }
 
     /** Bring a box in small and out of place, drag it to its spot, then resize it. */
     async drag(el: HTMLElement, to: Box, from: { dx: number; dy: number; s: number }) {
       const at = (dx: number, dy: number, s: number) => `translate(${dx}px, ${dy}px) scale(${s})`;
-      const grab = 10;
+      const grab = Math.min(10, to.w * from.s * 0.3);
       await this.move(to.x + from.dx + grab, to.y + from.dy + grab);
       el.style.transform = at(from.dx, from.dy, from.s);
       el.style.opacity = "1";
@@ -207,57 +258,52 @@ const agents = [0, 1, 2, 3];
         this.move(to.x + to.w, to.y + to.h, 0.5),
       ]);
     }
-
-    deselect(el: HTMLElement) { el.style.outline = ""; el.style.outlineOffset = ""; }
   }
 
+  const DRAG_STYLES = ["opacity", "transform", "transformOrigin", "outline", "outlineOffset"] as const;
+  const release = (el: HTMLElement) => { for (const p of DRAG_STYLES) el.style[p] = ""; };
+
   /** Measure the finished layout, then put every element in its "not made yet" state. */
-  function prepare() {
+  function prepare(d: Director) {
     root.classList.add("b-active");
-    // Only what's in the first screen gets built; the rest is simply there when you scroll.
-    const bottom = scrollY + innerHeight;
-    const onScreen = (el: Element) => box(el).y < bottom;
-    for (const el of qa("[data-row]")) if (!onScreen(el)) el.dataset.rowStatic = "";
     for (const el of qa("[data-type]")) {
-      if (!onScreen(el)) continue;
       const text = (el.textContent ?? "").replace(/\s+/g, " ").trim();
       el.textContent = "";
-      const spans = [...text].map((ch) => {
+      for (const ch of text) {
         const s = document.createElement("span");
         s.textContent = ch;
         s.style.visibility = "hidden";
         el.append(s);
-        return s;
-      });
-      typed.set(el, { text, spans });
+      }
+      d.typed.set(el, text);
     }
-    const boxes = new Map(qa("[data-drag]").filter(onScreen).map((el) => [el, box(el)]));
+    const boxes = new Map(qa("[data-drag]").map((el) => [el, box(el)]));
     for (const el of boxes.keys()) {
       el.style.opacity = "0";
       el.style.transformOrigin = "top left";
       el.style.outline = "1px solid var(--accent)";
       el.style.outlineOffset = "2px";
     }
-    for (const d of qa<SVGElement>("[data-diag]")) d.style.clipPath = "inset(50%)";
+    for (const g of qa<SVGElement>("[data-diag]")) g.style.clipPath = "inset(50%)";
     root.classList.remove("is-building");
     overlay.style.height = `${root.scrollHeight}px`;
     overlay.hidden = false;
-    skipBtn.hidden = false;
     return boxes;
   }
 
   function finish() {
-    for (const a of live) { try { a.cancel(); } catch {} }
-    live.clear();
-    for (const [el, t] of typed) el.textContent = t.text;
-    typed.clear();
-    for (const el of qa("[data-drag]")) {
-      for (const p of ["opacity", "transform", "transformOrigin", "outline", "outlineOffset"] as const) el.style[p] = "";
+    const d = current;
+    if (d) {
+      d.aborted = true;
+      d.wake();
+      d.stopListening?.();
+      for (const a of d.live) { try { a.cancel(); } catch {} }
+      for (const [el, text] of d.typed) el.textContent = text;
+      for (const l of d.lines) l.remove();
     }
-    for (const d of qa<SVGElement>("[data-diag]")) d.style.clipPath = "";
-    for (const el of qa("[data-row]")) delete el.dataset.rowStatic;
-    for (const l of made) l.remove();
-    made.length = 0;
+    for (const el of qa("[data-drag]")) release(el);
+    for (const g of qa<SVGElement>("[data-diag]")) g.style.clipPath = "";
+    for (const r of qa("[data-row]")) delete r.dataset.built;
     for (const c of cursorEls) { c.style.opacity = ""; c.style.transform = ""; }
     for (const c of caretEls) c.style.opacity = "";
     overlay.hidden = true;
@@ -267,116 +313,185 @@ const agents = [0, 1, 2, 3];
     current = null;
   }
 
-  function skip() {
-    if (!current) return;
-    current.aborted = true;
-    finish();
-  }
+  let current: Director | null = null;
 
   async function build() {
     if (current) return;
     if (reduce.matches) return finish();
-    const run: Run = { aborted: false };
-    current = run;
+    const d = new Director();
+    current = d;
     clearTimeout((window as any).__buildFailsafe);
     // Positions depend on web fonts; don't wait longer than 600ms for them.
     await Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 600))]);
-    if (run.aborted) return;
+    if (d.aborted) return;
 
-    const boxes = prepare();
-    const nav = q("header nav");
-    const figure = q("[data-drag='figure']");
-    const title = q("#intro-title");
-    const navBox = boxes.get(nav) ?? box(nav);
-    const figBox = boxes.get(figure);
+    const boxes = prepare(d);
+    const vw = innerWidth, vh = innerHeight, top = scrollY;
+    const onScreen = (el: Element) => box(el).y < top + vh;
+    const [a1, a2, a3, a4] = (d.agents = cursorEls.map((c, i) => new Agent(d, c, caretEls[i])));
+
+    const nav = q("header nav")!;
+    const figure = q("[data-drag='figure']")!;
+    const title = q("#intro-title")!;
+    const workLabel = q("#work-title")!;
+    const navBox = boxes.get(nav)!;
+    const figBox = boxes.get(figure)!;
     const titleBox = box(title);
-    const rows = qa("[data-row]").filter((r) => !("rowStatic" in r.dataset));
-    const rowBoxes = rows.map(box);
+    const rows = qa("[data-row]");
+    const rowBoxes = new Map(rows.map((r) => [r, box(r)]));
     const left = titleBox.x;
     const right = navBox.x + navBox.w;
-    const vw = innerWidth, vh = innerHeight, top = scrollY;
-    const [a1, a2, a3, a4] = cursorEls.map((c, i) => new Agent(run, c, caretEls[i]));
-    const typeIf = async (a: Agent, el: HTMLElement | null, ms: number) => { if (el) await a.type(el, ms); };
 
-    // Rows go to whichever agent is free first.
-    const queue = [...rows];
-    const takeRows = async (a: Agent) => {
-      for (let row = queue.shift(); row; row = queue.shift()) {
-        await typeIf(a, row.querySelector("h3"), MS_PER_CHAR.label);
-        await typeIf(a, row.querySelector(".blurb"), MS_PER_CHAR.body);
-        await typeIf(a, row.querySelector(".meta"), MS_PER_CHAR.label);
+    // ---- Building blocks shared by the first screen and later sections ----
+    const markBuilt = (row: HTMLElement) => {
+      row.dataset.built = "";
+      for (const l of d.rowLines.get(row) ?? []) l.remove();
+    };
+    /** A row's own hairlines: its top edge, plus the bottom edge for the last row. */
+    const drawRowRules = async (a: Agent, row: HTMLElement, flip = false) => {
+      const b = rowBoxes.get(row)!;
+      const ys = [b.y];
+      if (row === rows[rows.length - 1]) ys.push(b.y + b.h - 1);
+      for (const [i, y] of ys.entries()) {
+        const ltr = (i % 2 === 0) !== flip;
+        const line = await a.draw(ltr ? b.x : b.x + b.w, y, ltr ? b.x + b.w : b.x, y, "bi-rule");
+        if ("built" in row.dataset) line.remove();
+        else d.rowLines.set(row, [...(d.rowLines.get(row) ?? []), line]);
       }
     };
+    const rowTask = (row: HTMLElement, withRules: boolean): Task => async (a) => {
+      if (withRules) await drawRowRules(a, row);
+      await a.type(q("h3", row), MS_PER_CHAR.label);
+      await a.type(q(".blurb", row), MS_PER_CHAR.body);
+      await a.type(q(".meta", row), MS_PER_CHAR.label);
+      markBuilt(row);
+    };
+    const typeTask = (el: HTMLElement | null, ms: number): Task => (a) => a.type(el, ms);
+    const figureTask: Task = async (a) => {
+      const { x, y, w, h } = figBox;
+      await a.drag(figure, figBox, { dx: -w * 0.6, dy: h * 0.35, s: 0.35 });
+      const [g1, g2] = qa<SVGElement>("[data-diag]");
+      // From the bottom-right corner (where the resize ended) up to the top-left...
+      g1.style.clipPath = "inset(0)";
+      await Promise.all([
+        a.play(g1, { clipPath: ["inset(100% 0% 0% 100%)", "inset(0% 0% 0% 0%)"] }, { duration: 0.7 }),
+        a.move(x, y, 0.7),
+      ]);
+      // ...then across to the top-right, and down to the bottom-left.
+      await a.move(x + w, y);
+      g2.style.clipPath = "inset(0)";
+      await Promise.all([
+        a.play(g2, { clipPath: ["inset(0% 0% 100% 100%)", "inset(0% 0% 0% 0%)"] }, { duration: 0.7 }),
+        a.move(x, y + h, 0.7),
+      ]);
+      await a.type(q("figcaption", figure), MS_PER_CHAR.label);
+      release(figure);
+    };
 
-    // Writer: the words.
-    const writer = async () => {
-      a1.enter(-20, top + vh * 0.45);
-      await typeIf(a1, q("header .home"), MS_PER_CHAR.label);
-      await typeIf(a1, title, MS_PER_CHAR.display);
-      await typeIf(a1, q(".intro .lede"), MS_PER_CHAR.body);
-      await takeRows(a1);
-    };
-    // Layout: guides, the list's hairlines (alternating direction), its label.
-    const layout = async () => {
-      a2.enter(vw * 0.35, top - 24);
-      await a2.draw(left, top, left, top + vh, "bi-guide");
-      await a2.draw(right, titleBox.y + titleBox.h, left, titleBox.y + titleBox.h, "bi-guide");
-      const ys = rowBoxes.map((r) => r.y);
-      const last = rowBoxes[rowBoxes.length - 1];
-      if (last && last.y + last.h < top + vh) ys.push(last.y + last.h - 1);
-      for (let i = 0; i < ys.length; i++) {
-        const [x1, x2] = i % 2 ? [right, left] : [left, right];
-        await a2.draw(x1, ys[i], x2, ys[i], "bi-rule");
+    // ---- Later sections: built when they scroll into view ----
+    const units: [Element, Task[]][] = [];
+    const firstRows = rows.filter(onScreen);
+    if (!onScreen(workLabel)) units.push([workLabel, [typeTask(workLabel, MS_PER_CHAR.label)]]);
+    if (!onScreen(figure)) units.push([figure, [figureTask]]);
+    for (const r of rows) if (!firstRows.includes(r)) units.push([r, [rowTask(r, true)]]);
+    const about = q("#about")!;
+    units.push([about, [typeTask(q("#about-title"), MS_PER_CHAR.label), typeTask(q("p", about), MS_PER_CHAR.body)]]);
+    const contact = q("#contact")!;
+    units.push([contact, [
+      typeTask(q("#contact-title"), MS_PER_CHAR.label),
+      ...qa("[data-contact]").map((li): Task => async (a) => {
+        for (const el of qa("[data-type]", li)) await a.type(el, MS_PER_CHAR.label);
+      }),
+    ]]);
+    const footer = q("[data-footer]")!;
+    const replay = q("[data-drag='replay']")!;
+    units.push([footer, [
+      typeTask(q("p", footer), MS_PER_CHAR.label),
+      async (a) => {
+        await a.drag(replay, boxes.get(replay)!, { dx: -120, dy: -40, s: 0.6 });
+        release(replay);
+      },
+    ]]);
+    d.pendingUnits = units.length;
+    const waiting = units.map(([el, tasks]) => ({ top: box(el).y, tasks }));
+    /** A section starts once its top is 15% into the screen, or visible at the page's end. */
+    const checkUnits = () => {
+      const bottom = scrollY + innerHeight;
+      const atEnd = bottom >= root.scrollHeight - 2;
+      // Top to bottom, so sections revealed together are built in reading order.
+      for (const u of [...waiting]) {
+        if (u.top < bottom - innerHeight * 0.15 || (atEnd && u.top < bottom)) {
+          waiting.splice(waiting.indexOf(u), 1);
+          d.pendingUnits--;
+          d.push(u.tasks);
+        }
       }
-      await typeIf(a2, q("#work-title"), MS_PER_CHAR.label);
-      await takeRows(a2);
     };
-    // Mover: drags the nav into place and fills in its links.
-    const mover = async () => {
-      a3.enter(vw + 20, top + vh * 0.15);
-      if (boxes.has(nav)) {
+    let ticking = false;
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => { ticking = false; checkUnits(); });
+    };
+
+    // ---- The first screen: each agent has its own job, then helps with rows ----
+    const intros: (() => Promise<void>)[] = [
+      // Writer: the words.
+      async () => {
+        a1.enter(-20, top + vh * 0.45);
+        await a1.type(q("header .home"), MS_PER_CHAR.label);
+        await a1.type(title, MS_PER_CHAR.display);
+        await a1.type(q(".intro .lede"), MS_PER_CHAR.body);
+      },
+      // Layout: guides, the on-screen hairlines (alternating direction), the list label.
+      async () => {
+        a2.enter(vw * 0.35, top - 24);
+        await a2.draw(left, top, left, top + vh, "bi-guide");
+        await a2.draw(right, titleBox.y + titleBox.h, left, titleBox.y + titleBox.h, "bi-guide");
+        for (const [i, r] of firstRows.entries()) await drawRowRules(a2, r, i % 2 === 1);
+        if (onScreen(workLabel)) await a2.type(workLabel, MS_PER_CHAR.label);
+      },
+      // Mover: drags the nav into place and fills in its links.
+      async () => {
+        a3.enter(vw + 20, top + vh * 0.15);
         await a3.drag(nav, navBox, { dx: -vw * 0.25, dy: vh * 0.3, s: 0.6 });
-        for (const link of qa("header nav a")) await typeIf(a3, link, MS_PER_CHAR.label);
-        a3.deselect(nav);
+        for (const link of qa("header nav a")) await a3.type(link, MS_PER_CHAR.label);
+        release(nav);
+      },
+      // Illustrator: the central element, if it's in the first screen.
+      async () => {
+        a4.enter(vw * 0.6, top + vh + 20);
+        if (onScreen(figure)) await figureTask(a4);
+      },
+    ];
+    d.push(firstRows.map((r) => rowTask(r, false)));
+
+    /** After its intro, an agent takes tasks as they come, leaving when there's nothing to do. */
+    const work = async (a: Agent) => {
+      for (;;) {
+        if (a.present && d.queue.length === 0) await a.leave();
+        const task = await d.next();
+        if (!task) return;
+        if (!a.present) a.arrive();
+        d.busy++;
+        try { await task(a); } finally { d.busy--; d.settled(); }
       }
-      await takeRows(a3);
-    };
-    // Illustrator: the central element. Drag, resize, draw both diagonals, caption.
-    const illustrator = async () => {
-      a4.enter(vw * 0.6, top + vh + 20);
-      if (figBox) {
-        const { x, y, w, h } = figBox;
-        await a4.drag(figure, figBox, { dx: -w * 0.6, dy: h * 0.35, s: 0.35 });
-        const [d1, d2] = qa<SVGElement>("[data-diag]");
-        // From the bottom-right corner (where the resize ended) up to the top-left...
-        d1.style.clipPath = "inset(0)";
-        await Promise.all([
-          a4.play(d1, { clipPath: ["inset(100% 0% 0% 100%)", "inset(0% 0% 0% 0%)"] }, { duration: 0.7 }),
-          a4.move(x, y, 0.7),
-        ]);
-        // ...then across to the top-right, and down to the bottom-left.
-        await a4.move(x + w, y);
-        d2.style.clipPath = "inset(0)";
-        await Promise.all([
-          a4.play(d2, { clipPath: ["inset(0% 0% 100% 100%)", "inset(0% 0% 0% 0%)"] }, { duration: 0.7 }),
-          a4.move(x, y + h, 0.7),
-        ]);
-        await typeIf(a4, q("[data-drag='figure'] figcaption"), MS_PER_CHAR.label);
-        a4.deselect(figure);
-      }
-      await takeRows(a4);
     };
 
     try {
-      await Promise.all([writer(), layout(), mover(), illustrator()]);
-      // Settle: agents leave while the guides fade; drawn hairlines hand over to the real ones.
-      await Promise.all([
-        a1.leave(-40, a1.y + 80),
-        a2.leave(vw + 40, a2.y),
-        a3.leave(vw + 40, a3.y + 60),
-        a4.leave(a4.x, top + vh + 40),
-        ...qa(".bi-guide").map((g) => a1.play(g, { opacity: [0.5, 0] }, { duration: 0.6 })),
-      ]);
+      d.busy += intros.length;
+      const introsDone = intros.map((intro) => intro().finally(() => { d.busy--; d.settled(); }));
+      const everyone = d.agents.map((a, i) => introsDone[i].then(() => work(a)));
+      // The first screen is done once the intros and its rows are: guides fade, and
+      // later sections start listening for the scroll.
+      await Promise.all(introsDone);
+      await d.whenIdle();
+      await Promise.all(qa(".bi-guide").map((g) => d.play(g, { opacity: [0.5, 0] }, { duration: 0.6 })));
+      try { sessionStorage.setItem("built", "1"); } catch {}
+      addEventListener("scroll", onScroll, { passive: true });
+      d.stopListening = () => removeEventListener("scroll", onScroll);
+      checkUnits();
+      await Promise.all(everyone);
       finish();
     } catch (e) {
       if (!(e instanceof Aborted)) { finish(); throw e; }
@@ -385,12 +500,12 @@ const agents = [0, 1, 2, 3];
 
   if (root.classList.contains("is-building")) build();
 
-  skipBtn.addEventListener("click", skip);
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") skip(); });
+  skipBtn.addEventListener("click", finish);
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && current) finish(); });
   let lastWidth = innerWidth;
   addEventListener("resize", () => {
     // Positions were measured once; a real width change means they are stale.
-    if (innerWidth !== lastWidth) { lastWidth = innerWidth; skip(); }
+    if (innerWidth !== lastWidth) { lastWidth = innerWidth; if (current) finish(); }
   });
   document.querySelector("[data-replay]")?.addEventListener("click", () => {
     window.scrollTo({ top: 0, behavior: "instant" });
