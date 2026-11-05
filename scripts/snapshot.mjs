@@ -23,7 +23,11 @@ try {
       deviceScaleFactor: 2,
     });
     await page.goto(url, { waitUntil: "networkidle" });
-    await page.waitForTimeout(2500); // let the build-in animation finish
+    // Let the build-in finish (its overlay hides itself when done).
+    await page
+      .waitForFunction(() => document.querySelector("[data-bi-overlay]")?.hidden !== false, null, { timeout: 20000 })
+      .catch(() => console.warn("build-in did not finish in 20s; capturing anyway"));
+    await page.waitForTimeout(300);
     const file = `${outDir}/${date}-${label}-${vp.name}.png`;
     await page.screenshot({ path: file, fullPage: true });
     console.log("saved", file);
