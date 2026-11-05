@@ -65,7 +65,37 @@ Free sources: Google Fonts, Fontshare, or a variable font.
 - This site's own case study (built from `docs/`)
 
 ## 9. Never
-- No generic gradient blobs, glassmorphism cards or stock "hero + 3 feature cards" layouts.
-- No emoji as icons. No lorem ipsum in commits.
+Goal: clean, and not obviously vibe-coded. Many of these come from a list of common
+"vibe-coded site" tells, kept where they apply to this site.
+
+**Color**
+- No gradients (harsh or soft blobs), rainbow coloring, neon colors, or purple-on-black.
+- No pure white `#fff` or pure black `#000` backgrounds. Use tinted neutrals.
+
+**Surfaces**
+- No drop shadows, glassmorphism / liquid glass, or colored left-stripe accents.
+- Corner radius 0–2px only (exact value becomes a token). No soft, pill-shaped cards.
+
+**Layout**
+- No stock "hero + 3 feature cards in a row" layouts. No bento grids.
+- No fake terminal windows (traffic-light dots, `$` prompts). Mono labels are fine.
+- No decorative dot-grid backgrounds. Faint guide lines are allowed only as part of the
+  build-in, and they fade once it ends.
+
+**Icons**
+- No emoji, no icon libraries (Lucide etc.), no sparkle icons, no checkmark bullets.
+  Any icon we need, including the cursors, is a custom SVG.
+
+**Type**
+- Not Inter, Geist, Space Grotesk or Space Mono.
+
+**Motion**
+- No hover animation on everything. Hover states are reserved for things you can click.
 - No animation that delays reading content for more than ~2 seconds.
-- No color, font or easing that isn't in this file.
+
+**Copy** (everything a visitor reads: the site and the case study built from `docs/`)
+- No em dashes. No "it's not X, it's Y" constructions.
+- No lorem ipsum in commits.
+
+**Process**
+- No color, font, size, radius or easing that isn't in this file.
