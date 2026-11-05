@@ -19,10 +19,10 @@ Candidate directions (pick one, record it as an ADR):
 
 **Chosen:** **Multi-agent build-in** — see [ADR 0002](docs/decisions/0002-concept-multi-agent-build-in.md).
 4–6 cursors appear to build the page in front of the visitor: a less cluttered take on the
-reel, not a single cursor. The agents make everything in the first screen themselves: they
-type the text, draw the lines, and drag elements into place and resize them. The build is
-slow enough to watch (about 6 to 10s depending on screen size, see §7 and ADR 0006), can be skipped, and ends in a calm,
-readable page. Open: labeled vs. unlabeled cursors.
+reel, not a single cursor. The agents make everything on the page themselves: they type the
+text, draw the lines, and drag elements into place and resize them. The first screen is
+built on load and each later section as you scroll to it (see §7, ADR 0006, ADR 0007). It
+can be skipped, and ends in a calm, readable page. Open: labeled vs. unlabeled cursors.
 
 ## 2. Three words
 The site should feel: **elegant**, **simple**, **human**
@@ -71,20 +71,22 @@ Dark only. No light mode for now.
 ## 7. Motion
 - One signature moment (the build-in). Everything else is quiet: fades and small offsets only.
 - Durations: `150ms` micro (hover, focus), `300ms` UI. The build-in takes as long as the
-  first screen needs: measured about 9.5s on a 1440×900 desktop, 8.3s at 1280×720, 6.4s on a
-  phone. Cursor moves take 0.3s to 0.7s depending on distance; lines 0.35s to 0.6s.
+  first screen needs: measured about 10s on a 1440×900 desktop and 7s on a phone (page load
+  to guides faded). Later sections take 1 to 4s each as they appear. Cursor moves take 0.3s to 0.7s depending on distance; lines 0.35s to 0.6s.
 - Easing: one curve everywhere, `cubic-bezier(0.2, 0, 0, 1)` (`--ease`)
-- Build-in v1: 4 unlabeled cursors (custom SVG, `--accent`) make everything in the first
-  screen. Three kinds of action:
+- Build-in: 4 unlabeled cursors (custom SVG, `--accent`) make everything on the page.
+  Three kinds of action:
   - **Type:** text appears one character at a time behind a 2px `--accent` caret, at a
-    slightly uneven, human pace (display about 90ms per character, labels about 45ms, body
-    about 22ms).
+    slightly uneven, human pace (display about 70ms per character, labels about 35ms, body
+    about 17ms).
   - **Draw:** guide lines and hairlines grow along with the cursor that draws them.
-  - **Drag and resize:** boxes (nav, central element) appear small and out of place with a
+  - **Drag and resize:** boxes (nav, central element, Replay button) appear small and out of place with a
     1px `--accent` selection outline, get dragged to their spot, then resized from the
     bottom-right corner to full size.
-  Only what's in the first screen is built; content below it is simply there. Rows of the
-  work list go to whichever agent is free first. Guides fade and cursors leave at the end.
+  The first screen is built on load; guides fade when it's done. Every later section starts
+  empty and is built when it scrolls into view (its top 15% into the screen, or visible at
+  the end of the page): agents come in from the side, build it, and leave. Tasks go to
+  whichever agent is free first.
   Plays once per browser session (on every load in dev, for reviewing). A "Skip" button
   (and Esc) ends it at any point, and a "Replay build" control sits in the footer.
 - `prefers-reduced-motion: reduce` → skip the build-in, show the finished page, hide replay.

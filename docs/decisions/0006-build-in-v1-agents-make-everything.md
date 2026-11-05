@@ -1,7 +1,7 @@
 # 0006 — Build-in v1: the agents make everything on screen
 
 **Date:** 2026-11-05
-**Status:** accepted
+**Status:** accepted; "only the first screen" superseded by [0007](0007-build-sections-on-scroll.md)
 
 ## Context
 Build-in v0 (ADR 0002) had four cursors glide to sections that then faded in, in under 2s.
