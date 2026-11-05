@@ -1,0 +1,150 @@
+---
+// The signature moment (DESIGN.md §1, §7): four cursors build the page, then leave.
+const cursors = [0, 1, 2, 3];
+---
+<div class="overlay" data-build-overlay aria-hidden="true" hidden>
+  <span class="guide guide-v" data-guide></span>
+  <span class="guide guide-h" data-guide></span>
+  <span class="guide guide-h" data-guide></span>
+  {cursors.map(() => (
+    <svg class="cursor" data-cursor viewBox="0 0 14 20" width="14" height="20" focusable="false">
+      <path d="M1 1 L1 16 L5 12.5 L8 19 L10.5 18 L7.6 11.6 L12.5 11.6 Z" />
+    </svg>
+  ))}
+</div>
+
+<style is:global>
+  /* Hidden only while JS is about to animate them in; the head script adds the class. */
+  .is-building [data-build] { opacity: 0; }
+</style>
+
+<style>
+  .overlay {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 10;
+    overflow: hidden;
+  }
+  .guide {
+    position: absolute;
+    top: 0;
+    left: 0;
+    background: var(--muted);
+    opacity: 0;
+  }
+  .guide-v { width: 1px; height: 100%; transform-origin: top; }
+  .guide-h { height: 1px; width: 100%; transform-origin: left; }
+  .cursor {
+    position: absolute;
+    top: 0;
+    left: 0;
+    opacity: 0;
+    overflow: visible;
+  }
+  .cursor path {
+    fill: var(--accent);
+    stroke: var(--bg);
+    stroke-width: 1;
+    stroke-linejoin: round;
+  }
+</style>
+
+<script>
+  import { animate } from "motion/mini";
+
+  const EASE: [number, number, number, number] = [0.2, 0, 0, 1]; // --ease
+  const ORDER = ["title", "lede", "nav", "work"]; // one section per cursor
+  // Timings in seconds, all inside the 1.8s budget (--dur-build).
+  const T = { guides: 0.3, stagger: 0.12, start: 0.15, travel: 0.5, sweep: 0.3, fade: 0.15, settle: 1.3 };
+
+  const root = document.documentElement;
+  const overlay = document.querySelector<HTMLElement>("[data-build-overlay]")!;
+  const cursors = [...overlay.querySelectorAll<SVGElement>("[data-cursor]")];
+  const guides = [...overlay.querySelectorAll<HTMLElement>("[data-guide]")];
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)");
+  let running = false;
+
+  const targets = () =>
+    ORDER.map((k) => document.querySelector<HTMLElement>(`[data-build="${k}"]`)).filter(Boolean) as HTMLElement[];
+
+  function finish() {
+    for (const el of targets()) { el.style.opacity = ""; el.style.clipPath = ""; }
+    overlay.hidden = true;
+    root.classList.remove("is-building");
+    try { sessionStorage.setItem("built", "1"); } catch {}
+    running = false;
+  }
+
+  async function build() {
+    if (running) return;
+    if (reduce.matches) return finish();
+    running = true;
+    clearTimeout((window as any).__buildFailsafe);
+    const els = targets();
+    for (const el of els) { el.style.opacity = "0"; el.style.clipPath = "inset(0 100% 0 0)"; }
+    root.classList.remove("is-building");
+
+    try {
+      // Positions depend on web fonts; don't wait longer than 600ms for them.
+      await Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 600))]);
+      overlay.hidden = false;
+      const vw = innerWidth, vh = innerHeight;
+      const rects = els.map((el) => el.getBoundingClientRect());
+      const title = rects[0];
+      const work = rects[3] ?? rects[0];
+
+      // Guides: content edge, title baseline, top of the work list.
+      const [gv, gh1, gh2] = guides;
+      gv.style.left = `${title.left}px`;
+      gh1.style.top = `${title.bottom}px`;
+      gh2.style.top = `${Math.min(work.top, vh - 1)}px`;
+      // One track per guide (draw in, hold, fade) so animations don't stack on each other.
+      const total = T.settle + T.guides;
+      const guideOpacity = { opacity: [0, 0.5, 0.5, 0] };
+      const guideTimes = (d: number) => ({
+        duration: total - d, delay: d, ease: EASE,
+        times: [0, T.guides / (total - d), (T.settle - d) / (total - d), 1],
+      });
+      const anims: Promise<unknown>[] = [
+        animate(gv, { ...guideOpacity, transform: ["scaleY(0)", "scaleY(1)", "scaleY(1)", "scaleY(1)"] }, guideTimes(0)),
+        ...[gh1, gh2].map((g, i) =>
+          animate(g, { ...guideOpacity, transform: ["scaleX(0)", "scaleX(1)", "scaleX(1)", "scaleX(1)"] }, guideTimes(0.06 * (i + 1)))),
+      ];
+
+      // Cursors enter from the edges.
+      const starts = [[-24, vh * 0.3], [vw + 24, vh * 0.12], [vw * 0.7, -24], [vw * 0.2, vh + 24]];
+      els.forEach((el, i) => {
+        const c = cursors[i], r = rects[i];
+        const d = T.start + i * T.stagger;
+        const y = r.top + Math.min(r.height, 40) / 2;
+        const from = `translate(${starts[i][0]}px, ${starts[i][1]}px)`;
+        const at = `translate(${r.left}px, ${y}px)`;
+        const to = `translate(${r.left + Math.min(r.width, vw * 0.6)}px, ${y}px)`;
+        const t = T.travel / (T.travel + T.sweep);
+        anims.push(
+          animate(c, { transform: [from, at, to] }, { duration: T.travel + T.sweep, delay: d, ease: EASE, times: [0, t, 1] }),
+          animate(c, { opacity: [0, 1, 1, 0] }, {
+            duration: T.travel + T.sweep + T.fade, delay: d,
+            times: [0, 0.15, (T.travel + T.sweep) / (T.travel + T.sweep + T.fade), 1],
+          }),
+          // The section draws in behind its cursor.
+          animate(el, { opacity: [0, 1], clipPath: ["inset(0 100% 0 0)", "inset(0 0% 0 0)"] }, {
+            duration: T.sweep, delay: d + T.travel, ease: EASE,
+          }),
+        );
+      });
+
+      await Promise.all(anims);
+    } finally {
+      finish();
+    }
+  }
+
+  if (root.classList.contains("is-building")) build();
+
+  document.querySelector("[data-replay]")?.addEventListener("click", () => {
+    window.scrollTo({ top: 0, behavior: "instant" });
+    build();
+  });
+</script>
