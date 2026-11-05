@@ -37,32 +37,46 @@ Personal details worth weaving in (not decorating with): TBD
 Ideas so far: Spanish (bilingual touches?), math, biking, Oregon → Indiana.
 
 ## 4. Color
-Minimal palette. Define as CSS custom properties in `src/styles/tokens.css`.
-| Token | Value | Use |
-|---|---|---|
-| `--bg` | TBD | page background |
-| `--fg` | TBD | primary text |
-| `--muted` | TBD | secondary text, guides |
-| `--accent` | TBD | the one accent color — used sparingly |
-Dark mode / light mode: TBD
+Minimal palette, tinted neutrals plus one accent. Defined in `src/styles/tokens.css`.
+**Status:** four candidates under comparison (switch with `?palette=<name>` or the palette
+bar shown in dev). One gets picked, recorded as an ADR, and the rest are deleted.
+
+| Token | Forest | Ember | Ink | Night (dark) | Use |
+|---|---|---|---|---|---|
+| `--bg` | `#F4F2EE` | `#F5F1EA` | `#EEF0F2` | `#171715` | page background |
+| `--fg` | `#1C1B19` | `#1F1A17` | `#161A1F` | `#E8E5DF` | primary text |
+| `--muted` | `#6E6A63` | `#6F675F` | `#5E6670` | `#9C978E` | secondary text, guides, hairlines |
+| `--accent` | `#2F5D50` | `#B4441A` | `#1F4E8C` | `#8FB8A6` | cursors, links, focus. Used sparingly |
+
+Contrast on `--bg` (all pass AA for body text):
+Forest fg 15.4 / muted 4.8 / accent 6.7 · Ember 15.3 / 4.9 / 4.9 ·
+Ink 15.3 / 5.1 / 7.3 · Night 14.3 / 6.2 / 8.2.
+Dark mode / light mode: one mode only for now. Night exists to see if a dark site wins outright.
 
 ## 5. Typography
-- Display: TBD
-- Body: TBD
-- Mono (labels, metadata): TBD
-- Scale: TBD (e.g. a modular scale, ratio 1.25)
-Free sources: Google Fonts, Fontshare, or a variable font.
+- Display and body: **Schibsted Grotesk** (Google Fonts, variable 400 to 700)
+- Mono (labels, metadata, cursor tags): **IBM Plex Mono** (Google Fonts, 400 and 500)
+- Scale: ratio 1.25 from 16px: `13 / 16 / 20 / 25 / 31 / 39 / 49` px
+  (tokens `--text-xs` through `--text-3xl`)
+- Weights: 400 body, 500 headings. Line height 1.5 body, 1.1 display.
 
 ## 6. Layout & spacing
-- Grid: TBD
-- Spacing scale: 4 / 8 / 12 / 16 / 24 / 32 / 48 / 64 / 96 / 128 px
-- Max content width: TBD
+- Grid: none yet. A single left-aligned column.
+- Spacing scale: 4 / 8 / 12 / 16 / 24 / 32 / 48 / 64 / 96 / 128 px (`--space-1` to `--space-10`)
+- Max widths: text `65ch`, page `1120px`
+- Side gutter: 16px under 640px, 32px above
+- Corner radius: `0` (token `--radius`)
+- Lines: 1px hairlines in `--muted` at reduced opacity separate list rows. No boxes or cards.
 
 ## 7. Motion
 - One signature moment (the build-in). Everything else is quiet: fades and small offsets only.
-- Durations: TBD (e.g. 150ms micro, 300ms UI, 600–2000ms signature)
-- Easing: TBD (one or two curves, reused everywhere)
-- `prefers-reduced-motion: reduce` → skip the build-in, show the finished page.
+- Durations: `150ms` micro (hover, focus), `300ms` UI, `1800ms` max for the build-in
+- Easing: one curve everywhere, `cubic-bezier(0.2, 0, 0, 1)` (`--ease`)
+- Build-in v0: 4 unlabeled cursors (custom SVG, `--accent`). Guide lines draw, each cursor
+  travels to one section, and that section reveals as it arrives. Cursors and guides fade
+  out. Plays once per browser session, with a "Replay build" control in the footer.
+- `prefers-reduced-motion: reduce` → skip the build-in, show the finished page, hide replay.
+- Library: Motion (`motion/mini`), see ADR 0004.
 
 ## 8. Pages & sections
 - Home: intro, selected work, about, contact — TBD
