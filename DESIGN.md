@@ -85,7 +85,7 @@ Dark only. No light mode for now.
     bottom-right corner to full size.
   Only what's in the first screen is built; content below it is simply there. Rows of the
   work list go to whichever agent is free first. Guides fade and cursors leave at the end.
-  Plays once per browser session. A "Skip" button
+  Plays once per browser session (on every load in dev, for reviewing). A "Skip" button
   (and Esc) ends it at any point, and a "Replay build" control sits in the footer.
 - `prefers-reduced-motion: reduce` → skip the build-in, show the finished page, hide replay.
 - Library: Motion (`motion/mini`), see ADR 0004.

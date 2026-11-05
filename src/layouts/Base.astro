@@ -20,12 +20,13 @@ const { title, description = "Jake Jacobi, computer science student at Purdue." 
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Schibsted+Grotesk:wght@400..700&display=swap"
     />
-    <!-- Runs before paint: decide whether the build-in plays. -->
-    <script is:inline>
+    <!-- Runs before paint: decide whether the build-in plays.
+         Once per session on the live site; on every load in dev, so it's easy to review. -->
+    <script is:inline define:vars={{ everyLoad: import.meta.env.DEV }}>
       (() => {
         const d = document.documentElement;
         let seen = false;
-        try { seen = sessionStorage.getItem("built") === "1"; } catch {}
+        try { seen = !everyLoad && sessionStorage.getItem("built") === "1"; } catch {}
         if (!matchMedia("(prefers-reduced-motion: reduce)").matches && !seen) {
           d.classList.add("is-building");
           // Fail-safe: never leave content hidden if the script doesn't run.
