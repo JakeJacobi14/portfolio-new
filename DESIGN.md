@@ -24,8 +24,13 @@ build stays short (§9's ~2s limit applies) and ends in a calm, readable page.
 Open: labeled vs. unlabeled cursors; exact count and choreography.
 
 ## 2. Three words
-The site should feel: **TBD**, **TBD**, **TBD**
-(Every design decision gets checked against these.)
+The site should feel: **elegant**, **simple**, **human**
+- **Elegant:** every decision is purposeful; the whole thing comes out beautiful and clean.
+- **Simple:** everything on screen is needed. No fluff, no clutter.
+- **Human:** agents build it in the animation, but the finished site shouldn't look vibe-coded.
+
+In one line: modern and clean. These are a starting point; we'll refine them by reacting to
+real screens, not in the abstract.
 
 ## 3. What makes it mine
 Personal details worth weaving in (not decorating with): TBD
