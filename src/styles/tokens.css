@@ -1,0 +1,70 @@
+/* Design tokens. Every value here is defined in DESIGN.md. Change DESIGN.md first. */
+
+:root {
+  /* Color: default candidate is Forest (DESIGN.md §4) */
+  --bg: #F4F2EE;
+  --fg: #1C1B19;
+  --muted: #6E6A63;
+  --accent: #2F5D50;
+
+  /* Type (DESIGN.md §5) */
+  --font-sans: "Schibsted Grotesk", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --text-xs: 13px;
+  --text-sm: 16px;
+  --text-md: 20px;
+  --text-lg: 25px;
+  --text-xl: 31px;
+  --text-2xl: 39px;
+  --text-3xl: 49px;
+  --leading-body: 1.5;
+  --leading-display: 1.1;
+
+  /* Spacing (DESIGN.md §6) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --space-9: 96px;
+  --space-10: 128px;
+
+  --measure: 65ch;
+  --page-max: 1120px;
+  --gutter: var(--space-4);
+  --radius: 0;
+
+  /* Motion (DESIGN.md §7) */
+  --dur-micro: 150ms;
+  --dur-ui: 300ms;
+  --dur-build: 1800ms;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+}
+
+@media (min-width: 640px) {
+  :root { --gutter: var(--space-6); }
+}
+
+/* Palette candidates (DESIGN.md §4). Remove the losers once one is chosen. */
+[data-palette="ember"] {
+  --bg: #F5F1EA;
+  --fg: #1F1A17;
+  --muted: #6F675F;
+  --accent: #B4441A;
+}
+[data-palette="ink"] {
+  --bg: #EEF0F2;
+  --fg: #161A1F;
+  --muted: #5E6670;
+  --accent: #1F4E8C;
+}
+[data-palette="night"] {
+  --bg: #171715;
+  --fg: #E8E5DF;
+  --muted: #9C978E;
+  --accent: #8FB8A6;
+  color-scheme: dark;
+}
