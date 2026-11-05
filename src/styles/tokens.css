@@ -1,11 +1,12 @@
 /* Design tokens. Every value here is defined in DESIGN.md. Change DESIGN.md first. */
 
 :root {
-  /* Color: default candidate is Forest (DESIGN.md §4) */
-  --bg: #F4F2EE;
-  --fg: #1C1B19;
-  --muted: #6E6A63;
-  --accent: #2F5D50;
+  /* Color: Night (DESIGN.md §4, ADR 0005) */
+  --bg: #171715;
+  --fg: #E8E5DF;
+  --muted: #9C978E;
+  --accent: #8FB8A6;
+  color-scheme: dark;
 
   /* Type (DESIGN.md §5) */
   --font-sans: "Schibsted Grotesk", system-ui, sans-serif;
@@ -46,25 +47,4 @@
 
 @media (min-width: 640px) {
   :root { --gutter: var(--space-6); }
-}
-
-/* Palette candidates (DESIGN.md §4). Remove the losers once one is chosen. */
-[data-palette="ember"] {
-  --bg: #F5F1EA;
-  --fg: #1F1A17;
-  --muted: #6F675F;
-  --accent: #B4441A;
-}
-[data-palette="ink"] {
-  --bg: #EEF0F2;
-  --fg: #161A1F;
-  --muted: #5E6670;
-  --accent: #1F4E8C;
-}
-[data-palette="night"] {
-  --bg: #171715;
-  --fg: #E8E5DF;
-  --muted: #9C978E;
-  --accent: #8FB8A6;
-  color-scheme: dark;
 }

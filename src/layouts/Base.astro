@@ -1,7 +1,6 @@
 ---
 import "../styles/global.css";
 import BuildIn from "../components/BuildIn.astro";
-import PaletteBar from "../components/PaletteBar.astro";
 
 interface Props { title: string; description?: string }
 const { title, description = "Jake Jacobi, computer science student at Purdue." } = Astro.props;
@@ -11,6 +10,7 @@ const { title, description = "Jake Jacobi, computer science student at Purdue." 
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#171715" />
     <title>{title}</title>
     <meta name="description" content={description} />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -20,15 +20,10 @@ const { title, description = "Jake Jacobi, computer science student at Purdue." 
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Schibsted+Grotesk:wght@400..700&display=swap"
     />
-    <!-- Runs before paint: apply palette candidate, decide whether the build-in plays. -->
+    <!-- Runs before paint: decide whether the build-in plays. -->
     <script is:inline>
       (() => {
         const d = document.documentElement;
-        const palettes = ["forest", "ember", "ink", "night"];
-        try {
-          const p = new URLSearchParams(location.search).get("palette") || localStorage.getItem("palette");
-          if (palettes.includes(p)) { d.dataset.palette = p; localStorage.setItem("palette", p); }
-        } catch {}
         let seen = false;
         try { seen = sessionStorage.getItem("built") === "1"; } catch {}
         if (!matchMedia("(prefers-reduced-motion: reduce)").matches && !seen) {
@@ -43,6 +38,5 @@ const { title, description = "Jake Jacobi, computer science student at Purdue." 
     <a class="skip-link mono" href="#main">Skip to content</a>
     <slot />
     <BuildIn />
-    <PaletteBar />
   </body>
 </html>
