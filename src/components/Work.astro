@@ -7,13 +7,13 @@ const projects = [
 ];
 ---
 <section id="work" class="work" aria-labelledby="work-title">
-  <h2 id="work-title" class="label mono">Selected work</h2>
-  <ul data-build="work">
+  <h2 id="work-title" class="label mono" data-type>Selected work</h2>
+  <ul>
     {projects.map((p) => (
-      <li class="row">
-        <h3>{p.title}</h3>
-        <p class="blurb">{p.blurb}</p>
-        <p class="meta mono">{p.meta}</p>
+      <li class="row" data-row>
+        <h3 data-type>{p.title}</h3>
+        <p class="blurb" data-type>{p.blurb}</p>
+        <p class="meta mono" data-type>{p.meta}</p>
       </li>
     ))}
   </ul>
