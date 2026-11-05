@@ -1,0 +1,65 @@
+---
+// Temporary: lets us compare palette candidates (DESIGN.md §4). Delete once one is chosen.
+// Always visible in dev; in production only with ?compare in the URL.
+const palettes = ["forest", "ember", "ink", "night"];
+const dev = import.meta.env.DEV;
+---
+<div class="bar mono" data-palette-bar data-dev={dev ? "" : undefined} hidden role="group" aria-label="Palette candidates">
+  <span class="name">Palette</span>
+  {palettes.map((p) => <button type="button" data-set-palette={p} aria-pressed="false">{p}</button>)}
+</div>
+
+<style>
+  .bar {
+    position: fixed;
+    left: var(--gutter);
+    bottom: var(--space-4);
+    z-index: 20;
+    display: flex;
+    gap: var(--space-3);
+    align-items: baseline;
+    padding: var(--space-2) var(--space-3);
+    background: var(--bg);
+    color: var(--fg);
+    border: 1px solid color-mix(in srgb, var(--muted) 35%, transparent);
+    border-radius: var(--radius);
+  }
+  .bar[hidden] { display: none; }
+  .name { color: var(--muted); }
+  button {
+    font: inherit;
+    color: var(--muted);
+    background: none;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    transition: color var(--dur-micro) var(--ease);
+  }
+  button:hover { color: var(--accent); }
+  button[aria-pressed="true"] { color: var(--fg); text-decoration: underline; text-underline-offset: 0.2em; }
+</style>
+
+<script>
+  const bar = document.querySelector<HTMLElement>("[data-palette-bar]")!;
+  const q = new URLSearchParams(location.search);
+  if (bar.hasAttribute("data-dev") || q.has("compare")) bar.hidden = false;
+
+  const root = document.documentElement;
+  const buttons = [...bar.querySelectorAll<HTMLButtonElement>("[data-set-palette]")];
+  const sync = () => {
+    const current = root.dataset.palette ?? "forest";
+    for (const b of buttons) b.setAttribute("aria-pressed", String(b.dataset.setPalette === current));
+  };
+  for (const b of buttons) {
+    b.addEventListener("click", () => {
+      const p = b.dataset.setPalette!;
+      if (p === "forest") delete root.dataset.palette; else root.dataset.palette = p;
+      try { localStorage.setItem("palette", p); } catch {}
+      const url = new URL(location.href);
+      url.searchParams.set("palette", p);
+      history.replaceState(null, "", url);
+      sync();
+    });
+  }
+  sync();
+</script>
