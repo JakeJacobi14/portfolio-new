@@ -17,7 +17,11 @@ Candidate directions (pick one, record it as an ADR):
 - **C. Graph / fault tree** — content resolves as nodes in a graph (nod to my engineering
   work: fault tree analysis, dependency graphs).
 
-**Chosen:** TBD
+**Chosen:** **Multi-agent build-in** — see [ADR 0002](docs/decisions/0002-concept-multi-agent-build-in.md).
+4–6 cursors appear to build the page in front of the visitor: a less cluttered take on the
+reel, not a single cursor. Restraint comes from timing and density, not cursor count: the
+build stays short (§9's ~2s limit applies) and ends in a calm, readable page.
+Open: labeled vs. unlabeled cursors; exact count and choreography.
 
 ## 2. Three words
 The site should feel: **TBD**, **TBD**, **TBD**
