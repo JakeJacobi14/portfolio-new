@@ -30,15 +30,15 @@ entry, so **the process is documented as carefully as the product**.
 - Small, focused commits using Conventional Commits (`feat:`, `fix:`, `style:`, `docs:`, `refactor:`).
 - Don't add dependencies without saying why; log significant ones as a decision.
 
-## Documentation duties (important)
-This build is a case study. While working:
-1. **Decisions** — when we pick between real alternatives (library, layout, concept, palette),
-   write an ADR in `docs/decisions/` using `docs/decisions/TEMPLATE.md`. Number sequentially.
-2. **Journal** — at the end of a working session (or when I run `/log`), add an entry to
-   `docs/journal/` named `YYYY-MM-DD-short-title.md` using `docs/journal/TEMPLATE.md`.
-   Base it on what actually happened this session and `git log`/`git diff` — don't embellish.
-3. **Prompts** — when a prompt produced a notably good or bad result, note it in
-   `docs/prompts/log.md` (the prompt, what happened, what I changed). Honest misses are useful.
-4. **Screenshots** — before and after visual changes, run the snapshot script so the
-   evolution of the design is captured.
-Never rewrite past journal entries; they are a historical record. Append corrections instead.
+## Documentation (keep it light)
+Goal: just enough material to write one portfolio entry about how this site was made.
+Don't over-document. No session-length tracking, no logging every prompt.
+1. **Decisions:** ADRs in `docs/decisions/` (from `TEMPLATE.md`, numbered) only for big
+   choices: concept, stack, palette/type, significant libraries.
+2. **Journal:** a short entry in `docs/journal/YYYY-MM-DD-short-title.md` when a session
+   moved the project forward (or when I run `/log`). Base it on what actually happened and
+   `git log`; don't embellish.
+3. **Prompts:** add to `docs/prompts/log.md` only when something would make a good story in
+   the case study.
+4. **Screenshots:** at visual milestones (first build-in, new palette, etc.), not every change.
+Never rewrite past journal entries; append corrections instead.

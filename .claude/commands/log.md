@@ -11,8 +11,6 @@ Write a journal entry for today's work on the portfolio.
    section to it instead of creating a second file.
 3. Otherwise create `docs/journal/YYYY-MM-DD-<slug>.md` from `docs/journal/TEMPLATE.md`.
    Title: $ARGUMENTS (if empty, propose a short one).
-4. Fill it honestly from what happened — including things that didn't work. Link any ADRs
-   written today and any screenshots taken today. Don't guess "time spent"; ask me.
-5. If a prompt from this session is worth remembering (great result or instructive miss),
-   offer to add it to `docs/prompts/log.md`.
-6. Show me the entry, then commit it with `docs: journal <date>` once I approve.
+4. Keep it short and honest, including things that didn't work. Link any ADRs and
+   screenshots from today. No time tracking.
+5. Show me the entry, then commit it with `docs: journal <date>` once I approve.

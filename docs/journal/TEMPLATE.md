@@ -1,6 +1,5 @@
 # YYYY-MM-DD — Short title
 
-**Time spent:** ~Xh
 **Milestone:** (concept / wireframe / build / polish / launch)
 
 ## What I set out to do
