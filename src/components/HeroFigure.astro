@@ -1,0 +1,40 @@
+---
+// The central element (DESIGN.md §8). Still TBD, so this is a wireframe placeholder:
+// a framed box with two diagonals, the usual stand-in for "something goes here".
+---
+<figure class="hero-figure" data-drag="figure">
+  <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true" focusable="false" data-diag>
+    <line x1="0" y1="0" x2="100" y2="100" />
+  </svg>
+  <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true" focusable="false" data-diag>
+    <line x1="100" y1="0" x2="0" y2="100" />
+  </svg>
+  <figcaption class="mono" data-type>Central element, to be decided</figcaption>
+</figure>
+
+<style>
+  .hero-figure {
+    position: relative;
+    margin: 0;
+    aspect-ratio: 1;
+    border: 1px solid color-mix(in srgb, var(--muted) 35%, transparent);
+    border-radius: var(--radius);
+  }
+  svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+  line {
+    stroke: color-mix(in srgb, var(--muted) 35%, transparent);
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+  }
+  figcaption {
+    position: absolute;
+    left: var(--space-3);
+    bottom: var(--space-3);
+    color: var(--muted);
+  }
+</style>

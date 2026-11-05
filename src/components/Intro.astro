@@ -1,18 +1,24 @@
 ---
+import HeroFigure from "./HeroFigure.astro";
 ---
 <section class="intro" aria-labelledby="intro-title">
-  <h1 id="intro-title" data-build="title">Jake Jacobi</h1>
-  <p class="lede" data-build="lede">
-    Computer science student at Purdue, with minors in Spanish and math.
-    From Oregon, now in Indiana.
-  </p>
+  <div class="text">
+    <h1 id="intro-title" data-type>Jake Jacobi</h1>
+    <p class="lede" data-type>
+      Computer science student at Purdue, with minors in Spanish and math.
+      From Oregon, now in Indiana.
+    </p>
+  </div>
+  <HeroFigure />
 </section>
 
 <style>
   .intro {
     max-width: var(--page-max);
     margin: 0 auto;
-    padding: var(--space-10) var(--gutter) var(--space-9);
+    padding: var(--space-9) var(--gutter);
+    display: grid;
+    gap: var(--space-8);
   }
   h1 {
     font-size: var(--text-2xl);
@@ -28,5 +34,12 @@
   }
   @media (min-width: 640px) {
     h1 { font-size: var(--text-3xl); }
+  }
+  @media (min-width: 960px) {
+    .intro {
+      grid-template-columns: 3fr 2fr;
+      align-items: center;
+      padding-top: var(--space-8);
+    }
   }
 </style>
