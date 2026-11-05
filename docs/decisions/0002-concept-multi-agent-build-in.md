@@ -1,7 +1,7 @@
 # 0002 — Concept: multi-agent build-in
 
 **Date:** 2026-11-05
-**Status:** accepted (expected to be refined once there's something running)
+**Status:** accepted; choreography and timing revised by [0006](0006-build-in-v1-agents-make-everything.md)
 
 ## Context
 The site needs one signature interaction. The starting point was the IgnitronDev reel

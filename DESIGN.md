@@ -19,9 +19,10 @@ Candidate directions (pick one, record it as an ADR):
 
 **Chosen:** **Multi-agent build-in** — see [ADR 0002](docs/decisions/0002-concept-multi-agent-build-in.md).
 4–6 cursors appear to build the page in front of the visitor: a less cluttered take on the
-reel, not a single cursor. Restraint comes from timing and density, not cursor count: the
-build stays short (§9's ~2s limit applies) and ends in a calm, readable page.
-Open: labeled vs. unlabeled cursors; exact count and choreography.
+reel, not a single cursor. The agents make everything in the first screen themselves: they
+type the text, draw the lines, and drag elements into place and resize them. The build is
+slow enough to watch (about 6 to 10s depending on screen size, see §7 and ADR 0006), can be skipped, and ends in a calm,
+readable page. Open: labeled vs. unlabeled cursors.
 
 ## 2. Three words
 The site should feel: **elegant**, **simple**, **human**
@@ -37,21 +38,18 @@ Personal details worth weaving in (not decorating with): TBD
 Ideas so far: Spanish (bilingual touches?), math, biking, Oregon → Indiana.
 
 ## 4. Color
-Minimal palette, tinted neutrals plus one accent. Defined in `src/styles/tokens.css`.
-**Status:** four candidates under comparison (switch with `?palette=<name>` or the palette
-bar shown in dev). One gets picked, recorded as an ADR, and the rest are deleted.
+Night: a dark palette of tinted neutrals plus one accent. Defined in `src/styles/tokens.css`.
+Chosen from four candidates (Forest, Ember, Ink, Night), see ADR 0005.
 
-| Token | Forest | Ember | Ink | Night (dark) | Use |
-|---|---|---|---|---|---|
-| `--bg` | `#F4F2EE` | `#F5F1EA` | `#EEF0F2` | `#171715` | page background |
-| `--fg` | `#1C1B19` | `#1F1A17` | `#161A1F` | `#E8E5DF` | primary text |
-| `--muted` | `#6E6A63` | `#6F675F` | `#5E6670` | `#9C978E` | secondary text, guides, hairlines |
-| `--accent` | `#2F5D50` | `#B4441A` | `#1F4E8C` | `#8FB8A6` | cursors, links, focus. Used sparingly |
+| Token | Value | Use |
+|---|---|---|
+| `--bg` | `#171715` | page background |
+| `--fg` | `#E8E5DF` | primary text |
+| `--muted` | `#9C978E` | secondary text, guides, hairlines |
+| `--accent` | `#8FB8A6` | cursors, carets, selection outlines, links, focus. Used sparingly |
 
-Contrast on `--bg` (all pass AA for body text):
-Forest fg 15.4 / muted 4.8 / accent 6.7 · Ember 15.3 / 4.9 / 4.9 ·
-Ink 15.3 / 5.1 / 7.3 · Night 14.3 / 6.2 / 8.2.
-Dark mode / light mode: one mode only for now. Night exists to see if a dark site wins outright.
+Contrast on `--bg`: fg 14.3, muted 6.2, accent 8.2 (all pass AA).
+Dark only. No light mode for now.
 
 ## 5. Typography
 - Display and body: **Schibsted Grotesk** (Google Fonts, variable 400 to 700)
@@ -61,25 +59,41 @@ Dark mode / light mode: one mode only for now. Night exists to see if a dark sit
 - Weights: 400 body, 500 headings. Line height 1.5 body, 1.1 display.
 
 ## 6. Layout & spacing
-- Grid: none yet. A single left-aligned column.
+- Grid: none. A single left-aligned column, except the intro: from 960px up it is two
+  columns (text 3fr, central element 2fr). Breakpoints: `640px`, `960px`.
 - Spacing scale: 4 / 8 / 12 / 16 / 24 / 32 / 48 / 64 / 96 / 128 px (`--space-1` to `--space-10`)
 - Max widths: text `65ch`, page `1120px`
 - Side gutter: 16px under 640px, 32px above
 - Corner radius: `0` (token `--radius`)
 - Lines: 1px hairlines in `--muted` at reduced opacity separate list rows. No boxes or cards.
+  The central element's frame uses the same hairline.
 
 ## 7. Motion
 - One signature moment (the build-in). Everything else is quiet: fades and small offsets only.
-- Durations: `150ms` micro (hover, focus), `300ms` UI, `1800ms` max for the build-in
+- Durations: `150ms` micro (hover, focus), `300ms` UI. The build-in takes as long as the
+  first screen needs: measured about 9.5s on a 1440×900 desktop, 8.3s at 1280×720, 6.4s on a
+  phone. Cursor moves take 0.3s to 0.7s depending on distance; lines 0.35s to 0.6s.
 - Easing: one curve everywhere, `cubic-bezier(0.2, 0, 0, 1)` (`--ease`)
-- Build-in v0: 4 unlabeled cursors (custom SVG, `--accent`). Guide lines draw, each cursor
-  travels to one section, and that section reveals as it arrives. Cursors and guides fade
-  out. Plays once per browser session, with a "Replay build" control in the footer.
+- Build-in v1: 4 unlabeled cursors (custom SVG, `--accent`) make everything in the first
+  screen. Three kinds of action:
+  - **Type:** text appears one character at a time behind a 2px `--accent` caret, at a
+    slightly uneven, human pace (display about 90ms per character, labels about 45ms, body
+    about 22ms).
+  - **Draw:** guide lines and hairlines grow along with the cursor that draws them.
+  - **Drag and resize:** boxes (nav, central element) appear small and out of place with a
+    1px `--accent` selection outline, get dragged to their spot, then resized from the
+    bottom-right corner to full size.
+  Only what's in the first screen is built; content below it is simply there. Rows of the
+  work list go to whichever agent is free first. Guides fade and cursors leave at the end.
+  Plays once per browser session. A "Skip" button
+  (and Esc) ends it at any point, and a "Replay build" control sits in the footer.
 - `prefers-reduced-motion: reduce` → skip the build-in, show the finished page, hide replay.
 - Library: Motion (`motion/mini`), see ADR 0004.
 
 ## 8. Pages & sections
-- Home: intro, selected work, about, contact — TBD
+- Home: intro (with a central element), selected work, about, contact
+- Central element: TBD. For now a wireframe placeholder (a framed box with two diagonals)
+  that the agents build.
 - Project pages (case studies): problem → process → outcome → what I'd change
 - This site's own case study (built from `docs/`)
 
@@ -110,7 +124,8 @@ Goal: clean, and not obviously vibe-coded. Many of these come from a list of com
 
 **Motion**
 - No hover animation on everything. Hover states are reserved for things you can click.
-- No animation that delays reading content for more than ~2 seconds.
+- No animation that delays reading content for more than ~2 seconds unless it can be skipped.
+  The build-in is the one exception: skippable, once per session, and off for reduced motion.
 
 **Copy** (everything a visitor reads: the site and the case study built from `docs/`)
 - No em dashes. No "it's not X, it's Y" constructions.
