@@ -407,5 +407,38 @@
     "insertions": 2,
     "deletions": 1,
     "tags": []
+  },
+  {
+    "hash": "727c894c8300964c440c64a9d0c7c1c90d53d802",
+    "short": "727c894",
+    "date": "2026-11-07T18:44:57-05:00",
+    "subject": "docs: screenshots of constellation v2 at real, 10, 40 and 500 commits; v1 vs v2 sheet",
+    "type": "docs",
+    "files": 9,
+    "insertions": 0,
+    "deletions": 0,
+    "tags": []
+  },
+  {
+    "hash": "a5270e0fb3018c473d9f432c7a862978000ce25c",
+    "short": "a5270e0",
+    "date": "2026-11-07T18:51:36-05:00",
+    "subject": "docs: journal 2026-11-07; prompt log entry for the multi-phase miss",
+    "type": "docs",
+    "files": 2,
+    "insertions": 88,
+    "deletions": 0,
+    "tags": []
+  },
+  {
+    "hash": "5d5c386f5e24041429a023b56ff175e43ed03a41",
+    "short": "5d5c386",
+    "date": "2026-11-07T18:52:11-05:00",
+    "subject": "feat: pre-push hook refreshes commits.json, since Vercel builds can't see full history",
+    "type": "feat",
+    "files": 2,
+    "insertions": 15,
+    "deletions": 1,
+    "tags": []
   }
 ]
