@@ -1,6 +1,8 @@
 ---
 import "../styles/global.css";
 import BuildIn from "../components/BuildIn.astro";
+import Backdrop from "../components/Backdrop.astro";
+import ControlBar from "../components/ControlBar.astro";
 
 interface Props { title: string; description?: string }
 const { title, description = "Jake Jacobi, computer science student at Purdue." } = Astro.props;
@@ -36,8 +38,10 @@ const { title, description = "Jake Jacobi, computer science student at Purdue." 
     </script>
   </head>
   <body>
+    <Backdrop />
     <a class="skip-link mono" href="#main">Skip to content</a>
     <slot />
     <BuildIn />
+    <ControlBar />
   </body>
 </html>

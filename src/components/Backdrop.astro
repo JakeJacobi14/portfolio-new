@@ -1,0 +1,97 @@
+---
+// The page's background (DESIGN.md §6, ADR 0009): a dot grid the agents snap to, a brighter
+// copy of it near the cursor, the column guides the agents draw, and optional grain.
+// All decorative. Sits behind everything, spanning the whole document.
+const cols = Array.from({ length: 12 });
+---
+<div class="backdrop" aria-hidden="true">
+  <div class="dots"></div>
+  <div class="dots hot" data-dots-hot></div>
+  <div class="guides container grid" data-guides>
+    {cols.map(() => <span class="col" data-guide-col></span>)}
+  </div>
+  <div class="grain"></div>
+</div>
+{import.meta.env.DEV && (
+  // Dev only, for comparing: add ?grain to the URL to turn the grain on.
+  <script is:inline>if (/[?&]grain\b/.test(location.search)) document.documentElement.dataset.grain = "";</script>
+)}
+
+<style is:global>
+  .backdrop {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    overflow: hidden;
+  }
+  .backdrop > * { position: absolute; inset: 0; }
+
+  /* One dot per 24px tile, centered in the tile, shifted so a dot sits on the content's left
+     edge: at full width that edge is 50% - 564px; below it, the gutter. */
+  .dots {
+    --dot-color: color-mix(in srgb, var(--muted) calc(var(--dot-opacity) * 100%), transparent);
+    background-image: radial-gradient(circle, var(--dot-color) 1px, transparent 1.5px);
+    background-size: var(--dot-step) var(--dot-step);
+    background-position: calc(var(--gutter) - var(--dot-step) / 2) 0;
+  }
+  @media (min-width: 1192px) {
+    .dots { background-position: calc(50% + var(--dot-step) / 2) 0; }
+  }
+
+  /* Near the cursor: the same dots, brighter, masked to a circle around the pointer. */
+  .dots.hot {
+    --dot-color: color-mix(in srgb, var(--muted) calc(var(--dot-opacity-hot) * 100%), transparent);
+    -webkit-mask-image: radial-gradient(circle var(--glow-radius) at var(--mx, -999px) var(--my, -999px), #000, transparent);
+    mask-image: radial-gradient(circle var(--glow-radius) at var(--mx, -999px) var(--my, -999px), #000, transparent);
+    opacity: 0;
+    transition: opacity var(--dur-ui) var(--ease);
+  }
+  .dots.hot.on { opacity: 1; }
+  @media not ((hover: hover) and (pointer: fine)), (prefers-reduced-motion: reduce) {
+    .dots.hot { display: none; }
+  }
+
+  .guides { left: 0; right: 0; opacity: var(--guide-opacity-rest); }
+  .col {
+    border-inline: 1px solid var(--muted);
+  }
+  /* 4 / 8 / 12 columns, matching --cols. */
+  .col:nth-child(n + 5) { display: none; }
+  @media (min-width: 640px) {
+    .col:nth-child(n + 5) { display: block; }
+    .col:nth-child(n + 9) { display: none; }
+  }
+  @media (min-width: 960px) { .col:nth-child(n + 9) { display: block; } }
+  /* Before the build-in script runs, the guides aren't drawn yet. */
+  .is-building .guides { opacity: 0; }
+
+  .grain {
+    display: none;
+    position: fixed;
+    opacity: var(--grain-opacity);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1.4 -0.2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  [data-grain] .grain { display: block; }
+</style>
+
+<script>
+  // Cursor glow: move the mask with the pointer (page coordinates, so it follows scrolling).
+  const hot = document.querySelector<HTMLElement>("[data-dots-hot]")!;
+  const ok = matchMedia("(hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference)");
+  let cx = 0, cy = 0, queued = false;
+  const update = () => {
+    queued = false;
+    hot.style.setProperty("--mx", `${cx + scrollX}px`);
+    hot.style.setProperty("--my", `${cy + scrollY}px`);
+  };
+  const queue = () => { if (!queued) { queued = true; requestAnimationFrame(update); } };
+  addEventListener("pointermove", (e) => {
+    if (!ok.matches || e.pointerType !== "mouse") return;
+    cx = e.clientX; cy = e.clientY;
+    hot.classList.add("on");
+    queue();
+  }, { passive: true });
+  addEventListener("scroll", () => { if (hot.classList.contains("on")) queue(); }, { passive: true });
+  document.documentElement.addEventListener("pointerleave", () => hot.classList.remove("on"));
+</script>

@@ -1,5 +1,6 @@
 ---
 // The signature moment (DESIGN.md §1, §7, ADR 0006, ADR 0007): four agents make the page.
+// The Skip button lives in ControlBar.astro.
 // They build the first screen on load, then each later section as it scrolls into view,
 // by typing the text, drawing the lines, and dragging and resizing the boxes.
 const agents = [0, 1, 2, 3];
@@ -12,7 +13,6 @@ const agents = [0, 1, 2, 3];
     </svg>
   ))}
 </div>
-<button type="button" class="bi-skip mono" data-bi-skip hidden>Skip</button>
 
 <style is:global>
   /* Before the script runs: hide whatever the agents will make. */
@@ -61,22 +61,14 @@ const agents = [0, 1, 2, 3];
   }
   .bi-guide { background: var(--muted); opacity: 0.5; }
   .bi-rule { background: color-mix(in srgb, var(--muted) 35%, transparent); }
-
-  .bi-skip {
-    position: fixed;
-    right: var(--gutter);
-    bottom: var(--space-4);
-    z-index: 20;
-    padding: var(--space-2) var(--space-3);
-    color: var(--muted);
-    background: var(--bg);
-    border: 1px solid color-mix(in srgb, var(--muted) 35%, transparent);
-    border-radius: var(--radius);
-    cursor: pointer;
-    transition: color var(--dur-micro) var(--ease);
+  /* A snap to the dot grid leaves a brief tick on the dot (DESIGN.md §7). */
+  .bi-tick {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    margin: -2px 0 0 -2px;
+    background: var(--accent);
   }
-  .bi-skip:hover { color: var(--accent); }
-  .bi-skip[hidden] { display: none; }
 </style>
 
 <script>
@@ -104,6 +96,26 @@ const agents = [0, 1, 2, 3];
     return { x: r.left + scrollX, y: r.top + scrollY, w: r.width, h: r.height };
   };
   const travel = (dist: number) => Math.min(0.7, Math.max(0.3, dist / 1600));
+  const cssNum = (name: string) => parseFloat(getComputedStyle(root).getPropertyValue(name));
+  const guides = document.querySelector<HTMLElement>("[data-guides]")!;
+  /** Guide columns showing at this width (4, 8 or 12). */
+  const guideCols = () => qa("[data-guide-col]").filter((c) => c.offsetParent !== null);
+
+  /** The dot grid (DESIGN.md §6): a dot on the content's left edge, then every 24px; rows
+      start 12px from the top of the page. */
+  const grid = { left: 0, step: 24 };
+  const measureGrid = () => {
+    const first = guideCols()[0];
+    grid.step = cssNum("--dot-step") || 24;
+    grid.left = first ? box(first).x : 0;
+  };
+  const snap = (x: number, y: number) => {
+    const h = grid.step / 2;
+    return {
+      x: grid.left + Math.round((x - grid.left) / grid.step) * grid.step,
+      y: h + Math.round((y - h) / grid.step) * grid.step,
+    };
+  };
 
   /** One build of the page: shared state, a queue of tasks, and the agents that do them. */
   class Director {
@@ -166,10 +178,27 @@ const agents = [0, 1, 2, 3];
       this.present = true;
       this.d.updateSkip();
     }
-    /** Come back in from a side edge of the current screen. */
+    /** Come back in from a side edge of the current screen, on a row of dots. */
     arrive() {
       const left = Math.random() < 0.5;
-      this.enter(left ? -20 : innerWidth + 20, scrollY + innerHeight * (0.3 + Math.random() * 0.5));
+      this.enter(left ? -20 : innerWidth + 20, snap(0, scrollY + innerHeight * (0.3 + Math.random() * 0.5)).y);
+    }
+    /** Mark a snap: a small accent tick on the dot that fades out. */
+    tick(x: number, y: number) {
+      const t = document.createElement("span");
+      t.className = "bi-tick";
+      t.style.left = `${x}px`;
+      t.style.top = `${y}px`;
+      overlay.append(t);
+      this.d.lines.push(t);
+      this.d.play(t, { opacity: [1, 0] }, { duration: 0.6 }).then(() => t.remove(), () => {});
+    }
+    /** Move to the dot nearest a point, and tick it on arrival. */
+    async moveSnapped(x: number, y: number) {
+      const p = snap(x, y);
+      await this.move(p.x, p.y);
+      this.tick(p.x, p.y);
+      return p;
     }
     async move(x: number, y: number, duration = travel(Math.hypot(x - this.x, y - this.y))) {
       const from = `translate(${this.x}px, ${this.y}px)`;
@@ -240,7 +269,9 @@ const agents = [0, 1, 2, 3];
     async drag(el: HTMLElement, to: Box, from: { dx: number; dy: number; s: number }) {
       const at = (dx: number, dy: number, s: number) => `translate(${dx}px, ${dy}px) scale(${s})`;
       const grab = Math.min(10, to.w * from.s * 0.3);
-      await this.move(to.x + from.dx + grab, to.y + from.dy + grab);
+      // Pick the box up on a dot, so it starts out snapped to the grid.
+      const p = await this.moveSnapped(to.x + from.dx + grab, to.y + from.dy + grab);
+      from = { ...from, dx: p.x - to.x - grab, dy: p.y - to.y - grab };
       el.style.transform = at(from.dx, from.dy, from.s);
       el.style.opacity = "1";
       await this.play(el, { opacity: [0, 1] }, { duration: 0.2 });
@@ -285,6 +316,9 @@ const agents = [0, 1, 2, 3];
       el.style.outlineOffset = "2px";
     }
     for (const g of qa<SVGElement>("[data-diag]")) g.style.clipPath = "inset(50%)";
+    measureGrid();
+    guides.style.opacity = String(cssNum("--guide-opacity-build"));
+    for (const c of guideCols()) c.style.clipPath = "inset(0 0 100% 0)";
     root.classList.remove("is-building");
     overlay.style.height = `${root.scrollHeight}px`;
     overlay.hidden = false;
@@ -303,6 +337,8 @@ const agents = [0, 1, 2, 3];
     }
     for (const el of qa("[data-drag]")) release(el);
     for (const g of qa<SVGElement>("[data-diag]")) g.style.clipPath = "";
+    guides.style.opacity = "";
+    for (const c of qa("[data-guide-col]")) c.style.clipPath = "";
     for (const r of qa("[data-row]")) delete r.dataset.built;
     for (const c of cursorEls) { c.style.opacity = ""; c.style.transform = ""; }
     for (const c of caretEls) c.style.opacity = "";
@@ -367,6 +403,28 @@ const agents = [0, 1, 2, 3];
       markBuilt(row);
     };
     const typeTask = (el: HTMLElement | null, ms: number): Task => (a) => a.type(el, ms);
+    /** Sweep across the top of the screen; each column's guides draw down as the cursor
+        passes it. */
+    const sweepGuides = async (a: Agent) => {
+      const cols = guideCols();
+      if (!cols.length) return;
+      const H = root.scrollHeight;
+      const first = box(cols[0]);
+      const last = box(cols[cols.length - 1]);
+      const start = await a.moveSnapped(first.x, top + 36);
+      const sweep = Math.min(1.2, 0.5 + cols.length * 0.06);
+      const from = `inset(${top}px 0 ${H - top}px 0)`;
+      const drawn = cols.map((c) => {
+        c.style.clipPath = from;
+        return a.play(c, { clipPath: [from, `inset(${top}px 0 ${H - top - vh}px 0)`] }, {
+          duration: 0.5,
+          delay: (sweep * (box(c).x - first.x)) / Math.max(1, last.x - first.x),
+        });
+      });
+      await Promise.all([...drawn, a.move(last.x + last.w, start.y, sweep)]);
+      a.tick(last.x + last.w, start.y);
+      for (const c of cols) c.style.clipPath = "";
+    };
     const figureTask: Task = async (a) => {
       const { x, y, w, h } = figBox;
       await a.drag(figure, figBox, { dx: -w * 0.6, dy: h * 0.35, s: 0.35 });
@@ -445,8 +503,8 @@ const agents = [0, 1, 2, 3];
       },
       // Layout: guides, the on-screen hairlines (alternating direction), the list label.
       async () => {
-        a2.enter(vw * 0.35, top - 24);
-        await a2.draw(left, top, left, top + vh, "bi-guide");
+        a2.enter(left - 40, top - 24);
+        await sweepGuides(a2);
         await a2.draw(right, titleBox.y + titleBox.h, left, titleBox.y + titleBox.h, "bi-guide");
         for (const [i, r] of firstRows.entries()) await drawRowRules(a2, r, i % 2 === 1);
         if (onScreen(workLabel)) await a2.type(workLabel, MS_PER_CHAR.label);
@@ -486,7 +544,11 @@ const agents = [0, 1, 2, 3];
       // later sections start listening for the scroll.
       await Promise.all(introsDone);
       await d.whenIdle();
-      await Promise.all(qa(".bi-guide").map((g) => d.play(g, { opacity: [0.5, 0] }, { duration: 0.6 })));
+      await Promise.all([
+        ...qa(".bi-guide").map((g) => d.play(g, { opacity: [0.5, 0] }, { duration: 0.6 })),
+        d.play(guides, { opacity: [cssNum("--guide-opacity-build"), cssNum("--guide-opacity-rest")] }, { duration: 0.6 }),
+      ]);
+      guides.style.opacity = "";
       try { sessionStorage.setItem("built", "1"); } catch {}
       addEventListener("scroll", onScroll, { passive: true });
       d.stopListening = () => removeEventListener("scroll", onScroll);
