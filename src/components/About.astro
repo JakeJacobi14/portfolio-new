@@ -1,9 +1,7 @@
 ---
-import RegMarks from "./RegMarks.astro";
 ---
-<section id="about" class="about section container grid" aria-labelledby="about-title">
-  <RegMarks />
-  <h2 id="about-title" class="label mono full" data-type>About</h2>
+<section id="about" class="about" aria-labelledby="about-title">
+  <h2 id="about-title" class="label mono" data-type>About</h2>
   <p data-type>
     Placeholder: a short paragraph in your own words. What you like building, what you're
     studying, and one or two things outside of code (Spanish, math, biking).
@@ -11,6 +9,11 @@ import RegMarks from "./RegMarks.astro";
 </section>
 
 <style>
-  p { grid-column: 1 / -1; max-width: var(--measure); font-size: var(--text-md); }
-  @media (min-width: 960px) { p { grid-column: 1 / 9; } }
+  .about {
+    max-width: var(--page-max);
+    margin: 0 auto;
+    padding: 0 var(--gutter) var(--space-9);
+  }
+  .label { color: var(--muted); font-weight: 400; margin-bottom: var(--space-4); }
+  p { max-width: var(--measure); font-size: var(--text-md); }
 </style>

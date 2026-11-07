@@ -1,9 +1,7 @@
 ---
-import RegMarks from "./RegMarks.astro";
 import HeroFigure from "./HeroFigure.astro";
 ---
-<section class="intro section container grid" aria-labelledby="intro-title">
-  <RegMarks />
+<section class="intro" aria-labelledby="intro-title">
   <div class="text">
     <h1 id="intro-title" data-type>Jake Jacobi</h1>
     <p class="lede" data-type>
@@ -16,10 +14,12 @@ import HeroFigure from "./HeroFigure.astro";
 
 <style>
   .intro {
-    padding-block: var(--space-9) var(--space-7);
-    row-gap: var(--space-8);
+    max-width: var(--page-max);
+    margin: 0 auto;
+    padding: var(--space-9) var(--gutter);
+    display: grid;
+    gap: var(--space-8);
   }
-  .text, .intro :global(.hero-figure) { grid-column: 1 / -1; }
   h1 {
     font-size: var(--text-2xl);
     font-weight: 500;
@@ -36,8 +36,10 @@ import HeroFigure from "./HeroFigure.astro";
     h1 { font-size: var(--text-3xl); }
   }
   @media (min-width: 960px) {
-    .intro { align-items: center; padding-top: var(--space-8); }
-    .text { grid-column: 1 / 8; }
-    .intro :global(.hero-figure) { grid-column: 8 / -1; }
+    .intro {
+      grid-template-columns: 3fr 2fr;
+      align-items: center;
+      padding-top: var(--space-8);
+    }
   }
 </style>

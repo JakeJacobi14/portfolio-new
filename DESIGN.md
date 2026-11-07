@@ -59,23 +59,14 @@ Dark only. No light mode for now.
 - Weights: 400 body, 500 headings. Line height 1.5 body, 1.1 display.
 
 ## 6. Layout & spacing
-- Grid: 12 columns from 960px, 8 from 640px, 4 below (breakpoints `640px`, `960px`).
-  Column gap `24px` (`--grid-gap`). Content is centered with equal side margins; everything
-  (header, sections, footer, control bar) sits on the same columns. ADR 0009.
+- Grid: none. A single left-aligned column, except the intro: from 960px up it is two
+  columns (text 3fr, central element 2fr). Breakpoints: `640px`, `960px`.
 - Spacing scale: 4 / 8 / 12 / 16 / 24 / 32 / 48 / 64 / 96 / 128 px (`--space-1` to `--space-10`)
-- Max widths: text `65ch`, content `1128px` (`--page-max`, gutters sit outside it), so at full
-  width each column is 72px.
+- Max widths: text `65ch`, page `1120px`
 - Side gutter: 16px under 640px, 32px above
 - Corner radius: `0` (token `--radius`)
-- Lines: 1px hairlines in `--muted` at 35% (`--line`) separate list rows. No boxes or cards.
+- Lines: 1px hairlines in `--muted` at reduced opacity separate list rows. No boxes or cards.
   The central element's frame uses the same hairline.
-- Background: plain `--bg`. No dot grid, no persistent guides, no grain (tried and removed,
-  ADR 0009). Decorative extras, all `aria-hidden`:
-  - **Column guides:** a hairline at both edges of every column, drawn by the agents at the
-    start of the build-in at `--guide-opacity-build` (0.35). They fade out completely once
-    the first screen is built.
-  - **Registration marks:** a `12px` `+` in `--line` at the top corners of each section's
-    content box, centered in the space above it; the footer also gets bottom corners.
 
 ## 7. Motion
 - One signature moment (the build-in). Everything else is quiet: fades and small offsets only.
@@ -92,8 +83,7 @@ Dark only. No light mode for now.
   - **Drag and resize:** boxes (nav, central element, Replay button) appear small and out of place with a
     1px `--accent` selection outline, get dragged to their spot, then resized from the
     bottom-right corner to full size.
-  The build starts with one agent sweeping across the top while the column guides draw
-  down the screen. The first screen is built on load; guides fade out when it's done. Every later section starts
+  The first screen is built on load; guides fade when it's done. Every later section starts
   empty and is built when it scrolls into view (its top 15% into the screen, or visible at
   the end of the page): agents come in from the side, build it, and leave. Tasks go to
   whichever agent is free first.
@@ -104,9 +94,8 @@ Dark only. No light mode for now.
 
 ## 8. Pages & sections
 - Home: intro (with a central element), selected work, about, contact
-- Central element: the **commit constellation**. Every node is a real commit to this repo,
-  laid out as phyllotaxis (oldest at the center), nodes only by default. See ADR 0008.
-  The Making-of page shows the same commits as a time-spaced spiral timeline.
+- Central element: TBD. For now a wireframe placeholder (a framed box with two diagonals)
+  that the agents build.
 - Project pages (case studies): problem → process → outcome → what I'd change
 - This site's own case study (built from `docs/`)
 
@@ -126,8 +115,7 @@ Goal: clean, and not obviously vibe-coded. Many of these come from a list of com
 - No stock "hero + 3 feature cards in a row" layouts. No bento grids.
 - No fake terminal windows (traffic-light dots, `$` prompts). Mono labels are fine.
 - No decorative dot-grid backgrounds. Faint guide lines are allowed only as part of the
-  build-in, and they fade once it ends. (A dot grid was tried on 2026-11-07 and removed:
-  too distracting. ADR 0009.)
+  build-in, and they fade once it ends.
 
 **Icons**
 - No emoji, no icon libraries (Lucide etc.), no sparkle icons, no checkmark bullets.

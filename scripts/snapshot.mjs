@@ -23,15 +23,10 @@ try {
       deviceScaleFactor: 2,
     });
     await page.goto(url, { waitUntil: "networkidle" });
-    // Let the first screen finish building, then skip the rest: later sections only build
-    // when scrolled to (ADR 0007), so the build never ends on its own in a still capture.
+    // Let the build-in finish (its overlay hides itself when done).
     await page
-      .waitForFunction(() => {
-        const overlay = document.querySelector("[data-bi-overlay]");
-        return overlay?.hidden !== false || sessionStorage.getItem("built") === "1";
-      }, null, { timeout: 30000 })
-      .catch(() => console.warn("first screen did not finish in 30s; capturing anyway"));
-    await page.keyboard.press("Escape");
+      .waitForFunction(() => document.querySelector("[data-bi-overlay]")?.hidden !== false, null, { timeout: 20000 })
+      .catch(() => console.warn("build-in did not finish in 20s; capturing anyway"));
     await page.waitForTimeout(300);
     const file = `${outDir}/${date}-${label}-${vp.name}.png`;
     await page.screenshot({ path: file, fullPage: true });

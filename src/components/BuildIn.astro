@@ -1,6 +1,5 @@
 ---
 // The signature moment (DESIGN.md §1, §7, ADR 0006, ADR 0007): four agents make the page.
-// The Skip button lives in ControlBar.astro.
 // They build the first screen on load, then each later section as it scrolls into view,
 // by typing the text, drawing the lines, and dragging and resizing the boxes.
 const agents = [0, 1, 2, 3];
@@ -13,6 +12,7 @@ const agents = [0, 1, 2, 3];
     </svg>
   ))}
 </div>
+<button type="button" class="bi-skip mono" data-bi-skip hidden>Skip</button>
 
 <style is:global>
   /* Before the script runs: hide whatever the agents will make. */
@@ -61,6 +61,22 @@ const agents = [0, 1, 2, 3];
   }
   .bi-guide { background: var(--muted); opacity: 0.5; }
   .bi-rule { background: color-mix(in srgb, var(--muted) 35%, transparent); }
+
+  .bi-skip {
+    position: fixed;
+    right: var(--gutter);
+    bottom: var(--space-4);
+    z-index: 20;
+    padding: var(--space-2) var(--space-3);
+    color: var(--muted);
+    background: var(--bg);
+    border: 1px solid color-mix(in srgb, var(--muted) 35%, transparent);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: color var(--dur-micro) var(--ease);
+  }
+  .bi-skip:hover { color: var(--accent); }
+  .bi-skip[hidden] { display: none; }
 </style>
 
 <script>
@@ -88,10 +104,6 @@ const agents = [0, 1, 2, 3];
     return { x: r.left + scrollX, y: r.top + scrollY, w: r.width, h: r.height };
   };
   const travel = (dist: number) => Math.min(0.7, Math.max(0.3, dist / 1600));
-  const cssNum = (name: string) => parseFloat(getComputedStyle(root).getPropertyValue(name));
-  const guides = document.querySelector<HTMLElement>("[data-guides]")!;
-  /** Guide columns showing at this width (4, 8 or 12). */
-  const guideCols = () => qa("[data-guide-col]").filter((c) => c.offsetParent !== null);
 
   /** One build of the page: shared state, a queue of tasks, and the agents that do them. */
   class Director {
@@ -273,8 +285,6 @@ const agents = [0, 1, 2, 3];
       el.style.outlineOffset = "2px";
     }
     for (const g of qa<SVGElement>("[data-diag]")) g.style.clipPath = "inset(50%)";
-    guides.style.opacity = String(cssNum("--guide-opacity-build"));
-    for (const c of guideCols()) c.style.clipPath = "inset(0 0 100% 0)";
     root.classList.remove("is-building");
     overlay.style.height = `${root.scrollHeight}px`;
     overlay.hidden = false;
@@ -293,8 +303,6 @@ const agents = [0, 1, 2, 3];
     }
     for (const el of qa("[data-drag]")) release(el);
     for (const g of qa<SVGElement>("[data-diag]")) g.style.clipPath = "";
-    guides.style.opacity = "";
-    for (const c of qa("[data-guide-col]")) c.style.clipPath = "";
     for (const r of qa("[data-row]")) delete r.dataset.built;
     for (const c of cursorEls) { c.style.opacity = ""; c.style.transform = ""; }
     for (const c of caretEls) c.style.opacity = "";
@@ -359,28 +367,6 @@ const agents = [0, 1, 2, 3];
       markBuilt(row);
     };
     const typeTask = (el: HTMLElement | null, ms: number): Task => (a) => a.type(el, ms);
-    /** Sweep across the top of the screen; each column's guides draw down as the cursor
-        passes it. */
-    const sweepGuides = async (a: Agent) => {
-      const cols = guideCols();
-      if (!cols.length) return;
-      const H = root.scrollHeight;
-      const first = box(cols[0]);
-      const last = box(cols[cols.length - 1]);
-      const start = { y: top + 36 };
-      await a.move(first.x, start.y);
-      const sweep = Math.min(1.2, 0.5 + cols.length * 0.06);
-      const from = `inset(${top}px 0 ${H - top}px 0)`;
-      const drawn = cols.map((c) => {
-        c.style.clipPath = from;
-        return a.play(c, { clipPath: [from, `inset(${top}px 0 ${H - top - vh}px 0)`] }, {
-          duration: 0.5,
-          delay: (sweep * (box(c).x - first.x)) / Math.max(1, last.x - first.x),
-        });
-      });
-      await Promise.all([...drawn, a.move(last.x + last.w, start.y, sweep)]);
-      for (const c of cols) c.style.clipPath = "";
-    };
     const figureTask: Task = async (a) => {
       const { x, y, w, h } = figBox;
       await a.drag(figure, figBox, { dx: -w * 0.6, dy: h * 0.35, s: 0.35 });
@@ -459,8 +445,8 @@ const agents = [0, 1, 2, 3];
       },
       // Layout: guides, the on-screen hairlines (alternating direction), the list label.
       async () => {
-        a2.enter(left - 40, top - 24);
-        await sweepGuides(a2);
+        a2.enter(vw * 0.35, top - 24);
+        await a2.draw(left, top, left, top + vh, "bi-guide");
         await a2.draw(right, titleBox.y + titleBox.h, left, titleBox.y + titleBox.h, "bi-guide");
         for (const [i, r] of firstRows.entries()) await drawRowRules(a2, r, i % 2 === 1);
         if (onScreen(workLabel)) await a2.type(workLabel, MS_PER_CHAR.label);
@@ -500,11 +486,7 @@ const agents = [0, 1, 2, 3];
       // later sections start listening for the scroll.
       await Promise.all(introsDone);
       await d.whenIdle();
-      await Promise.all([
-        ...qa(".bi-guide").map((g) => d.play(g, { opacity: [0.5, 0] }, { duration: 0.6 })),
-        d.play(guides, { opacity: [cssNum("--guide-opacity-build"), 0] }, { duration: 0.6 }),
-      ]);
-      guides.style.opacity = "";
+      await Promise.all(qa(".bi-guide").map((g) => d.play(g, { opacity: [0.5, 0] }, { duration: 0.6 })));
       try { sessionStorage.setItem("built", "1"); } catch {}
       addEventListener("scroll", onScroll, { passive: true });
       d.stopListening = () => removeEventListener("scroll", onScroll);
