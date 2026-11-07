@@ -1,5 +1,5 @@
 // Write this repo's commit history to src/data/commits.json for the commit constellation.
-// Usage: npm run commits
+// Usage: npm run commits [-- --require-full]
 //
 // Each commit: short and full hash, date, subject, Conventional Commit type, files changed,
 // insertions, deletions, and any tags on it. Merge commits are skipped. Commits whose hash
@@ -21,6 +21,12 @@ const shallow = git("rev-parse", "--is-shallow-repository").trim() === "true";
 const visible = git("rev-list", "--count", "HEAD").trim();
 console.log(`commits: git sees ${visible} commits (${shallow ? "shallow clone" : "full history"})`);
 if (shallow) {
+  // --require-full: fail the build instead of shipping stale data (for builds that are
+  // supposed to have the full history, like Vercel with VERCEL_DEEP_CLONE=true).
+  if (process.argv.includes("--require-full")) {
+    console.error("commits: shallow clone but --require-full was given; failing the build");
+    process.exit(1);
+  }
   console.warn(`commits: shallow clone, keeping the committed ${OUT}`);
   process.exit(0);
 }
