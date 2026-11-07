@@ -94,8 +94,9 @@ Dark only. No light mode for now.
 
 ## 8. Pages & sections
 - Home: intro (with a central element), selected work, about, contact
-- Central element: TBD. For now a wireframe placeholder (a framed box with two diagonals)
-  that the agents build.
+- Central element: the **commit constellation**. Every node is a real commit to this repo,
+  laid out as phyllotaxis (oldest at the center), nodes only by default. See ADR 0008.
+  The Making-of page shows the same commits as a time-spaced spiral timeline.
 - Project pages (case studies): problem → process → outcome → what I'd change
 - This site's own case study (built from `docs/`)
 
