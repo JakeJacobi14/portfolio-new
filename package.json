@@ -10,7 +10,8 @@
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
-    "commits": "node scripts/commits.mjs"
+    "commits": "node scripts/commits.mjs",
+    "prebuild": "node scripts/commits.mjs"
   },
   "dependencies": {
     "astro": "^7.4.5",

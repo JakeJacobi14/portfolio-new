@@ -4,7 +4,7 @@
 // Each commit: short and full hash, date, subject, Conventional Commit type, files changed,
 // insertions, deletions, and any tags on it. Merge commits are skipped. Commits whose hash
 // starts with an entry in src/data/commits-exclude.json are left out (commit messages are
-// public on the site).
+// public on the site). Bookkeeping commits that only refresh commits.json are skipped too.
 //
 // In a shallow clone (like Vercel's default build) git only sees the last few commits, so
 // the script refuses to overwrite the committed file rather than shrink it.
@@ -17,7 +17,10 @@ const TYPES = ["feat", "fix", "style", "docs", "refactor", "chore"];
 
 const git = (...args) => execFileSync("git", args, { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
 
-if (git("rev-parse", "--is-shallow-repository").trim() === "true") {
+const shallow = git("rev-parse", "--is-shallow-repository").trim() === "true";
+const visible = git("rev-list", "--count", "HEAD").trim();
+console.log(`commits: git sees ${visible} commits (${shallow ? "shallow clone" : "full history"})`);
+if (shallow) {
   console.warn(`commits: shallow clone, keeping the committed ${OUT}`);
   process.exit(0);
 }
@@ -40,8 +43,10 @@ for (const chunk of log.split("\x1e").filter((c) => c.trim())) {
   const [header, ...stats] = chunk.split("\n");
   const [hash, short, date, subject] = header.split("\x1f");
   if (exclude.some((p) => hash.startsWith(p))) continue;
+  const changed = stats.filter(Boolean);
+  if (changed.length && changed.every((s) => s.endsWith(`\t${OUT}`))) continue; // a data refresh
   let files = 0, insertions = 0, deletions = 0;
-  for (const s of stats.filter(Boolean)) {
+  for (const s of changed) {
     const [add, del] = s.split("\t");
     files++;
     // Binary files show "-"; they count as a changed file with no lines.
