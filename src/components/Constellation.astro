@@ -1,0 +1,283 @@
+---
+// The central element (DESIGN.md §8, ADR 0008): the commit constellation. Every node is a
+// real commit to this repo, oldest at the center. Laid out at build time; the script below
+// only handles hover, focus and tap.
+import realCommits from "../data/commits.json";
+import { layout, day, REPO, VIEW, type Commit } from "../lib/constellation";
+
+let commits: Commit[] = realCommits;
+// DEV ONLY: `FAKE_COMMITS=500 npm run dev` swaps in fake data to test other sizes.
+if (import.meta.env.DEV && process.env.FAKE_COMMITS) {
+  const { fakeCommits } = await import("../dev/fake-commits");
+  commits = fakeCommits(Number(process.env.FAKE_COMMITS));
+}
+
+const { nodes, length } = layout(commits);
+const n = nodes.length;
+const newest = nodes[n - 1];
+const recent = nodes.slice(-10).reverse();
+const milestones = nodes.filter((k) => k.tags.length);
+const d = nodes.map((k, i) => `${i ? "L" : "M"}${k.x} ${k.y}`).join("");
+const label = n
+  ? `Commit constellation: ${n} commits to this site, from ${day(nodes[0].date)} to ${day(newest.date)}, oldest at the center. Each one links to the commit on GitHub; arrow keys move between them.`
+  : "Commit constellation: no commits yet.";
+const describe = (k: (typeof nodes)[number]) => `${k.short}, ${day(k.date)}: ${k.subject}`;
+---
+<figure class="constellation" data-drag="figure" data-constellation>
+  <div class="c-frame" data-c-frame>
+  <svg viewBox={`0 0 ${VIEW} ${VIEW}`} role="group" aria-label={label}>
+    <path
+      class="c-path"
+      d={d}
+      stroke-dasharray={`${length} ${length}`}
+      stroke-dashoffset={length}
+      data-c-path
+      data-length={length}
+      aria-hidden="true"
+    />
+    {milestones.map((k) => (
+      <circle class="c-milestone" cx={k.x} cy={k.y} r={k.r + 1.4} data-c-label-for={k.i} aria-hidden="true" />
+    ))}
+    {nodes.map((k) => (
+      <a
+        href={`${REPO}/commit/${k.hash}`}
+        target="_blank"
+        rel="noopener"
+        tabindex={k === newest ? 0 : -1}
+        aria-label={describe(k)}
+        data-c-node
+        data-along={k.along}
+        data-short={k.short}
+        data-date={day(k.date)}
+        data-subject={k.subject}
+        data-tags={k.tags.join(" ") || undefined}
+      >
+        <circle class={`c-node t-${k.type}`} cx={k.x} cy={k.y} r={k.r} />
+      </a>
+    ))}
+    <circle class="c-ring" r="0" data-c-ring aria-hidden="true" />
+  </svg>
+  {milestones.map((k) => (
+    <span
+      class:list={["c-label mono", { left: k.x > 70 }]}
+      style={`--x:${k.x}%; --y:${k.y}%; --gap:${((k.r + 2.4) / VIEW) * 100}%`}
+      data-c-label-for={k.i}
+      aria-hidden="true"
+    >{k.tags.join(", ")}</span>
+  ))}
+  <div class="c-tip mono" data-c-tip hidden aria-hidden="true">
+    <span class="c-tip-meta" data-c-tip-meta></span>
+    <span data-c-tip-subject></span>
+  </div>
+  </div>
+  <figcaption class="mono" data-type>{n} commits to this site, oldest at the center</figcaption>
+  <div class="visually-hidden">
+    <p>The 10 most recent commits:</p>
+    <ol>
+      {recent.map((k) => <li><a href={`${REPO}/commit/${k.hash}`} tabindex="-1">{describe(k)}</a></li>)}
+    </ol>
+  </div>
+</figure>
+
+<style>
+  .constellation { margin: 0; }
+  .c-frame {
+    position: relative;
+    aspect-ratio: 1;
+    border: 1px solid color-mix(in srgb, var(--muted) 35%, transparent);
+    border-radius: var(--radius);
+  }
+  svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  /* Color by commit type (DESIGN.md §8): existing tokens only. */
+  .c-node { fill: var(--muted); }
+  .t-feat { fill: var(--fg); }
+  .t-fix { fill: var(--accent); }
+  .t-docs { fill: none; stroke: var(--muted); stroke-width: 0.3; }
+
+  [data-c-node] {
+    transform-box: fill-box;
+    transform-origin: center;
+    transition: opacity var(--dur-ui) var(--ease);
+  }
+  [data-c-node]:focus { outline: none; } /* the accent ring is the focus indicator */
+  [data-c-node][data-dim], [data-c-label-for][data-dim] { opacity: 0.2; }
+  .c-milestone { transition: opacity var(--dur-ui) var(--ease); }
+
+  .c-path {
+    fill: none;
+    stroke: var(--muted);
+    stroke-width: 0.25;
+    stroke-linejoin: round;
+    opacity: 0.5;
+    transition: stroke-dashoffset var(--dur-ui) var(--ease);
+  }
+  .c-milestone { fill: none; stroke: var(--muted); stroke-width: 0.25; }
+  .c-ring {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 0.5;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .c-label {
+    position: absolute;
+    left: calc(var(--x) + var(--gap));
+    top: var(--y);
+    transform: translateY(-50%);
+    padding: 0 var(--space-1);
+    color: var(--muted);
+    background: var(--bg);
+    white-space: nowrap;
+    pointer-events: none;
+    transition: opacity var(--dur-ui) var(--ease);
+  }
+  .c-label.left { left: auto; right: calc(100% - var(--x) + var(--gap)); }
+
+  .c-tip {
+    position: absolute;
+    left: 0;
+    top: 0;
+    z-index: 1;
+    display: grid;
+    gap: var(--space-1);
+    width: max-content;
+    max-width: min(36ch, 90%);
+    padding: var(--space-2) var(--space-3);
+    background: var(--bg);
+    border: 1px solid color-mix(in srgb, var(--muted) 35%, transparent);
+    border-radius: var(--radius);
+    pointer-events: none;
+  }
+  .c-tip[hidden] { display: none; }
+  .c-tip-meta { color: var(--muted); }
+
+  figcaption { margin-top: var(--space-3); color: var(--muted); }
+
+  @media (prefers-reduced-motion: reduce) {
+    [data-c-node], .c-path, .c-label, .c-milestone { transition: none; }
+  }
+</style>
+
+<script>
+  const fig = document.querySelector<HTMLElement>("[data-constellation]");
+  const frame = fig?.querySelector<HTMLElement>("[data-c-frame]");
+  if (fig && frame) {
+    const svg = fig.querySelector("svg")!;
+    const links = [...fig.querySelectorAll<SVGAElement>("[data-c-node]")];
+    const pts = links.map((a) => {
+      const c = a.firstElementChild as SVGCircleElement;
+      return { x: +c.getAttribute("cx")!, y: +c.getAttribute("cy")!, r: +c.getAttribute("r")! };
+    });
+    const path = fig.querySelector<SVGPathElement>("[data-c-path]")!;
+    const total = Number(path.dataset.length);
+    const marks = [...fig.querySelectorAll<Element>("[data-c-label-for]")];
+    const ring = fig.querySelector<SVGCircleElement>("[data-c-ring]")!;
+    const tip = fig.querySelector<HTMLElement>("[data-c-tip]")!;
+    const tipMeta = fig.querySelector<HTMLElement>("[data-c-tip-meta]")!;
+    const tipSubject = fig.querySelector<HTMLElement>("[data-c-tip-subject]")!;
+    const building = () => document.documentElement.classList.contains("b-active");
+    let active = -1;
+
+    /** Commits after a milestone dim, and the path draws through every commit up to it. */
+    const trace = (upTo: number) => {
+      links.forEach((a, k) => a.toggleAttribute("data-dim", upTo >= 0 && k > upTo));
+      for (const m of marks) m.toggleAttribute("data-dim", upTo >= 0 && Number(m.getAttribute("data-c-label-for")) > upTo);
+      path.style.strokeDashoffset = upTo >= 0 ? String(total - Number(links[upTo].dataset.along)) : "";
+    };
+
+    const place = (i: number) => {
+      const p = pts[i];
+      const w = frame.clientWidth, h = frame.clientHeight;
+      const tw = tip.offsetWidth, th = tip.offsetHeight;
+      const cx = (p.x / 100) * w;
+      const gap = 8 + (p.r / 100) * w;
+      const above = (p.y / 100) * h - gap - th;
+      const top = above >= 0 ? above : (p.y / 100) * h + gap;
+      const left = Math.min(Math.max(cx - tw / 2, 0), w - tw);
+      tip.style.transform = `translate(${left}px, ${top}px)`;
+    };
+
+    const show = (i: number) => {
+      if (i === active) return;
+      active = i;
+      if (i < 0) {
+        tip.hidden = true;
+        ring.style.opacity = "0";
+        trace(-1);
+        return;
+      }
+      const a = links[i], p = pts[i];
+      ring.setAttribute("cx", String(p.x));
+      ring.setAttribute("cy", String(p.y));
+      ring.setAttribute("r", String(p.r + 0.9));
+      ring.style.opacity = "1";
+      const tags = a.dataset.tags ? ` · ${a.dataset.tags}` : "";
+      tipMeta.textContent = `${a.dataset.short} · ${a.dataset.date}${tags}`;
+      tipSubject.textContent = a.dataset.subject ?? "";
+      tip.hidden = false;
+      place(i);
+      trace(a.dataset.tags ? i : -1);
+    };
+
+    /** The node nearest a pointer, if it's close enough to mean that node. */
+    const nearest = (e: { clientX: number; clientY: number }) => {
+      const b = svg.getBoundingClientRect();
+      const x = ((e.clientX - b.left) / b.width) * 100;
+      const y = ((e.clientY - b.top) / b.height) * 100;
+      let best = -1, bestD = Infinity;
+      pts.forEach((p, k) => {
+        const d = Math.hypot(p.x - x, p.y - y);
+        if (d < Math.max(p.r + 1.5, 2.5) && d < bestD) { best = k; bestD = d; }
+      });
+      return best;
+    };
+
+    let pointerType = "mouse";
+    svg.addEventListener("pointerdown", (e) => { pointerType = e.pointerType; });
+    svg.addEventListener("pointermove", (e) => {
+      if (e.pointerType !== "mouse" || building()) return;
+      const i = nearest(e);
+      svg.style.cursor = i >= 0 ? "pointer" : "";
+      show(i);
+    });
+    svg.addEventListener("pointerleave", (e) => { if (e.pointerType === "mouse") show(-1); });
+    svg.addEventListener("click", (e) => {
+      if (e.detail === 0) return; // keyboard Enter: let the focused link open itself
+      e.preventDefault();
+      if (building()) return;
+      const i = nearest(e);
+      // Touch: the first tap shows the tooltip, a second tap on the same node opens it.
+      if (pointerType !== "mouse" && i !== active) return show(i);
+      if (i >= 0) window.open(links[i].href.baseVal, "_blank", "noopener");
+    });
+    document.addEventListener("pointerdown", (e) => {
+      if (active >= 0 && !fig.contains(e.target as Node)) show(-1);
+    });
+
+    // Keyboard: one tab stop, arrow keys step through commits in order.
+    links.forEach((a, i) => a.addEventListener("focus", () => show(i)));
+    fig.addEventListener("focusout", (e) => {
+      if (!fig.contains(e.relatedTarget as Node)) show(-1);
+    });
+    svg.addEventListener("keydown", (e) => {
+      const i = links.indexOf(document.activeElement as SVGAElement);
+      if (i < 0) return;
+      const to = { ArrowRight: i + 1, ArrowUp: i + 1, ArrowLeft: i - 1, ArrowDown: i - 1, Home: 0, End: links.length - 1 }[e.key];
+      if (to === undefined) return;
+      e.preventDefault();
+      const next = Math.min(Math.max(to, 0), links.length - 1);
+      links[i].setAttribute("tabindex", "-1");
+      links[next].setAttribute("tabindex", "0");
+      links[next].focus();
+    });
+    addEventListener("resize", () => { if (active >= 0) place(active); });
+  }
+</script>
