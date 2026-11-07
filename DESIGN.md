@@ -49,6 +49,15 @@ Chosen from four candidates (Forest, Ember, Ink, Night), see ADR 0005.
 | `--accent` | `#8FB8A6` | cursors, carets, selection outlines, links, focus. Used sparingly |
 
 Contrast on `--bg`: fg 14.3, muted 6.2, accent 8.2 (all pass AA).
+
+Star colors, for the commit constellation only (§8). Near-white with a slight temperature
+shift; never the accent, which stays with the cursors, focus and links.
+
+| Token | Value | Use |
+|---|---|---|
+| `--star` | `#E8E5DF` (same as `--fg`) | most commit types |
+| `--star-warm` | `#F0E2CB` | `feat` |
+| `--star-cool` | `#D6E0EA` | `fix`, `refactor` |
 Dark only. No light mode for now.
 
 ## 5. Typography
@@ -57,6 +66,8 @@ Dark only. No light mode for now.
 - Scale: ratio 1.25 from 16px: `13 / 16 / 20 / 25 / 31 / 39 / 49` px
   (tokens `--text-xs` through `--text-3xl`)
 - Weights: 400 body, 500 headings. Line height 1.5 body, 1.1 display.
+- One step below the scale for constellation milestone labels only: `10px` (`--text-2xs`),
+  IBM Plex Mono, letter-spaced `0.12em` (`--tracking-label`).
 
 ## 6. Layout & spacing
 - Grid: none. A single left-aligned column, except the intro: from 960px up it is two
@@ -91,30 +102,41 @@ Dark only. No light mode for now.
   (and Esc) ends it at any point, and a "Replay build" control sits in the footer.
 - `prefers-reduced-motion: reduce` → skip the build-in, show the finished page, hide replay.
 - Library: Motion (`motion/mini`), see ADR 0004.
+- Twinkle (constellation only, §8): about 1 in 8 stars, chosen from the commit hash, slowly
+  dims to 45% of its brightness and back. Each cycle takes 4 to 8s (`--twinkle-min`
+  `4s`, `--twinkle-max` `8s`), eased with `--ease`, alternating. Off for reduced motion.
 
 ## 8. Pages & sections
 - Home: intro (with a central element), selected work, about, contact
-- Central element: the **commit constellation** (ADR 0008), in the existing framed box.
-  Every node is a real commit to this repo (`npm run commits` → `src/data/commits.json`).
-  - **Layout:** phyllotaxis. Commit *i* (oldest first) sits at radius `c·√i`, angle
-    `i·137.5°`, with a small offset seeded from its hash, so the same data always draws the
-    same image. Nodes only; no lines at rest.
-  - **Size:** radius grows with lines changed, log-scaled, capped so nodes never overlap.
-  - **Color by type** (existing tokens only): `feat` filled `--fg`; `fix` filled `--accent`;
-    `docs` a hollow `--muted` ring; `style`, `refactor`, `chore` and anything else filled
-    `--muted`.
-  - **Milestones** (git tags): a `--muted` hairline ring around the node and the tag name in
-    IBM Plex Mono at `--text-xs`, `--muted`.
-  - **Hover / focus** a node: an `--accent` ring and a tooltip (short hash, date, subject;
+- Central element: the **commit constellation**, drawn as a night sky (ADR 0008, ADR 0009),
+  in the existing framed box. Every star is a real commit to this repo (`npm run commits` →
+  `src/data/commits.json`). Feel: Eleanor Lutz's constellation maps. Tiny points, a few
+  bright stars, faint thin lines, lots of empty space.
+  - **Layout:** phyllotaxis base (commit *i*, oldest first, at radius `c·√i`, angle
+    `i·137.5°`), pushed off it by up to half the spacing in a direction seeded from the hash,
+    so it reads as a sky but still grows outward. Same data, same image.
+  - **Stars:** filled points only, no rings. Size follows lines changed on a power curve, so
+    most are tiny (1 to 2px across), some medium (2 to 3px), and only big commits and
+    milestones are bright (4 to 6px core). Opacity 0.35 to 1, seeded from the hash and
+    raised for bigger stars. Color by type: `--star-warm`, `--star-cool` or `--star` (§4).
+  - **Halo:** bright stars only, a soft radial fade of their own color, about 4.5× the core.
+  - **Stardust:** around each star, 0 to 6 specks (one per changed file after the first),
+    1px, at 10 to 20% opacity. Decorative, never interactive, and only from real data.
+  - **Constellation lines:** only milestones (git tags) form figures. Each milestone joins
+    the 4 brightest commits since the previous milestone with the shortest set of lines
+    (a minimum spanning tree). Lines are `--muted`, about 0.7px, at 25% opacity. The tag
+    name sits beside the milestone in `--text-2xs`, `--tracking-label`, `--muted`.
+  - **Hover / focus** a star: an `--accent` ring and a tooltip (short hash, date, subject;
     mono, `--text-xs`, `--bg` with a `--muted` 35% hairline border). Click opens the commit
-    on GitHub in a new tab. Touch: first tap shows the tooltip, second tap opens.
-    Arrow keys step through commits in order.
-  - **Hover a milestone:** commits after it dim to 20% opacity and the path through every
-    commit up to it draws in a `--muted` hairline (`--dur-ui`).
-  - **Build-in:** after the box is dragged in, an agent places the nodes oldest to newest
-    while the path draws between them, in about 2s whatever the count (nodes are placed in
-    batches). The path then fades out. Reduced motion: the finished image.
-  - **Accessible:** a group label describing the image, a link per node with its hash, date
+    on GitHub in a new tab. Touch: first tap shows the tooltip, second tap opens. Arrow keys
+    step through commits in order. Hit areas reach well past the tiny stars.
+  - **Hover a milestone:** its figure brightens (lines to 60%) and the rest of the sky dims
+    to 45% (`--dur-ui`).
+  - **Build-in:** after the box is dragged in, an agent places the stars oldest to newest
+    while a path draws between them, in about 2s whatever the count. The path fades, the
+    stardust fades in, and the constellation lines draw last. Reduced motion: the finished
+    sky, no twinkle.
+  - **Accessible:** a group label describing the image, a link per star with its hash, date
     and subject, and a visually hidden list of the 10 most recent commits.
 - Project pages (case studies): problem → process → outcome → what I'd change
 - This site's own case study (built from `docs/`)
@@ -125,6 +147,8 @@ Goal: clean, and not obviously vibe-coded. Many of these come from a list of com
 
 **Color**
 - No gradients (harsh or soft blobs), rainbow coloring, neon colors, or purple-on-black.
+  One exception: the soft halo on the brightest constellation stars (§8), a fade of the
+  star's own color. (Added 2026-11-07, ADR 0009.)
 - No pure white `#fff` or pure black `#000` backgrounds. Use tinted neutrals.
 
 **Surfaces**

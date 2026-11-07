@@ -6,11 +6,17 @@
   --fg: #E8E5DF;
   --muted: #9C978E;
   --accent: #8FB8A6;
+  /* Star colors: the commit constellation only (DESIGN.md §4, §8) */
+  --star: #E8E5DF;
+  --star-warm: #F0E2CB;
+  --star-cool: #D6E0EA;
   color-scheme: dark;
 
   /* Type (DESIGN.md §5) */
   --font-sans: "Schibsted Grotesk", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --text-2xs: 10px; /* constellation milestone labels only */
+  --tracking-label: 0.12em;
   --text-xs: 13px;
   --text-sm: 16px;
   --text-md: 20px;
@@ -43,6 +49,8 @@
   --dur-ui: 300ms;
   --dur-build: 1800ms;
   --ease: cubic-bezier(0.2, 0, 0, 1);
+  --twinkle-min: 4s;
+  --twinkle-max: 8s;
 }
 
 @media (min-width: 640px) {
