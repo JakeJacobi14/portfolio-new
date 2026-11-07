@@ -284,8 +284,8 @@ const agents = [0, 1, 2, 3];
       el.style.outline = "1px solid var(--accent)";
       el.style.outlineOffset = "2px";
     }
-    // The constellation's nodes, milestone marks and labels are placed one by one.
-    for (const el of qa<Element & ElementCSSInlineStyle>("[data-c-node], [data-c-label-for]")) el.style.opacity = "0";
+    // The constellation's stars, stardust, figures and labels are placed by an agent.
+    for (const el of qa<Element & ElementCSSInlineStyle>("[data-c-node], [data-c-label-for], [data-c-dust], [data-c-fig]")) el.style.opacity = "0";
     root.classList.remove("is-building");
     overlay.style.height = `${root.scrollHeight}px`;
     overlay.hidden = false;
@@ -303,10 +303,11 @@ const agents = [0, 1, 2, 3];
       for (const l of d.lines) l.remove();
     }
     for (const el of qa("[data-drag]")) release(el);
-    for (const el of qa<Element & ElementCSSInlineStyle>("[data-c-node], [data-c-label-for]")) {
+    for (const el of qa<Element & ElementCSSInlineStyle>("[data-c-node], [data-c-label-for], [data-c-dust], [data-c-fig]")) {
       el.style.opacity = "";
       el.style.transform = "";
     }
+    for (const l of qa<SVGLineElement>("[data-c-line]")) { l.style.strokeDasharray = ""; l.style.strokeDashoffset = ""; }
     resetPath();
     for (const r of qa("[data-row]")) delete r.dataset.built;
     for (const c of cursorEls) { c.style.opacity = ""; c.style.transform = ""; }
@@ -390,15 +391,15 @@ const agents = [0, 1, 2, 3];
       await a.type(q("figcaption", figure), MS_PER_CHAR.label);
       release(figure);
     };
-    /** The commit constellation (DESIGN.md §8): place the nodes oldest to newest while the
-        path draws between them, in batches so it takes about 2s whatever the count. */
+    /** The commit constellation (DESIGN.md §8): place the stars oldest to newest while the
+        path draws between them, in batches so it takes about 2s whatever the count. Then
+        the path fades, the stardust fades in, and the constellation lines draw last. */
     const placeNodes = async (a: Agent) => {
       const nodes = qa<SVGAElement>("[data-c-node]", figure);
       const path = q<SVGPathElement>("[data-c-path]", figure);
       if (!nodes.length || !path) return;
       const total = Number(path.dataset.length);
       const along = (k: number) => (k < 0 ? 0 : Number(nodes[k].dataset.along));
-      const extras = (k: number) => qa<Element & ElementCSSInlineStyle>(`[data-c-label-for="${k}"]`, figure);
       const batches = Math.min(nodes.length, 14);
       const per = 2 / batches;
       path.style.opacity = "1";
@@ -410,7 +411,6 @@ const agents = [0, 1, 2, 3];
         for (let k = from; k < to; k++) {
           const delay = ((k - from) / (to - from)) * per;
           appearing.push(a.play(nodes[k], { opacity: [0, 1], transform: ["scale(0.4)", "scale(1)"] }, { duration: 0.3, delay }));
-          for (const el of extras(k)) appearing.push(a.play(el, { opacity: [0, 1] }, { duration: 0.3, delay }));
         }
         const end = box(nodes[to - 1]);
         await Promise.all([
@@ -419,14 +419,36 @@ const agents = [0, 1, 2, 3];
         ]);
       }
       await Promise.all(appearing);
-      for (const el of [...nodes, ...qa<Element & ElementCSSInlineStyle>("[data-c-label-for]", figure)]) {
-        el.style.opacity = "";
-        el.style.transform = "";
-      }
-      // The path was only there to show the order; it fades out (ADR 0008).
-      await a.play(path, { opacity: [1, 0] }, { duration: 0.6 });
+      for (const el of nodes) { el.style.opacity = ""; el.style.transform = ""; }
+
+      // The path was only there to show the order: it fades as the stardust comes in.
+      const dust = q<SVGGElement>("[data-c-dust]", figure);
+      await Promise.all([
+        a.play(path, { opacity: [1, 0] }, { duration: 0.6 }),
+        dust ? a.play(dust, { opacity: [0, 1] }, { duration: 0.8 }) : null,
+      ]);
       path.style.opacity = "0";
       resetPath();
+      if (dust) dust.style.opacity = "";
+
+      // Constellation lines last: the agent visits each milestone and its figure draws out
+      // from it. About 1.2s in all, however many milestones there are.
+      const figs = qa<SVGGElement>("[data-c-fig]", figure);
+      const each = Math.min(0.5, 1.2 / Math.max(1, figs.length));
+      for (const g of figs) {
+        g.style.opacity = "";
+        const lines = qa<SVGLineElement>("[data-c-line]", g);
+        for (const l of lines) { l.style.strokeDasharray = "1"; l.style.strokeDashoffset = "1"; }
+        const star = q<SVGAElement>(`[data-c-node][data-tags][data-fig="${g.dataset.cFig}"]`, figure);
+        if (star) { const sb = box(star); await a.move(sb.x + sb.w / 2, sb.y + sb.h / 2, Math.max(0.2, each * 0.6)); }
+        const label = q<HTMLElement>(`[data-c-label-for="${g.dataset.cFig}"]`, figure);
+        await Promise.all([
+          ...lines.map((l) => a.play(l, { strokeDashoffset: ["1", "0"] }, { duration: each })),
+          label ? a.play(label, { opacity: [0, 1] }, { duration: each }) : null,
+        ]);
+      }
+      for (const el of qa<Element & ElementCSSInlineStyle>("[data-c-label-for]", figure)) el.style.opacity = "";
+      for (const l of qa<SVGLineElement>("[data-c-line]", figure)) { l.style.strokeDasharray = ""; l.style.strokeDashoffset = ""; }
     };
 
     // ---- Later sections: built when they scroll into view ----

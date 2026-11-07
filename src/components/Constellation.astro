@@ -1,9 +1,9 @@
 ---
-// The central element (DESIGN.md §8, ADR 0008): the commit constellation. Every node is a
-// real commit to this repo, oldest at the center. Laid out at build time; the script below
-// only handles hover, focus and tap.
+// The central element (DESIGN.md §8, ADR 0008, ADR 0009): the commit constellation, drawn
+// as a night sky. Every star is a real commit to this repo, oldest at the center. Laid out
+// at build time; the script below only handles hover, focus and tap.
 import realCommits from "../data/commits.json";
-import { layout, day, REPO, VIEW, type Commit } from "../lib/constellation";
+import { sky, day, REPO, VIEW, type Commit, type Star } from "../lib/constellation";
 
 let commits: Commit[] = realCommits;
 // DEV ONLY: `FAKE_COMMITS=500 npm run dev` swaps in fake data to test other sizes.
@@ -12,69 +12,102 @@ if (import.meta.env.DEV && process.env.FAKE_COMMITS) {
   commits = fakeCommits(Number(process.env.FAKE_COMMITS));
 }
 
-const { nodes, length } = layout(commits);
-const n = nodes.length;
-const newest = nodes[n - 1];
-const recent = nodes.slice(-10).reverse();
-const milestones = nodes.filter((k) => k.tags.length);
-const d = nodes.map((k, i) => `${i ? "L" : "M"}${k.x} ${k.y}`).join("");
+const { stars, figures, dust, length } = sky(commits);
+const n = stars.length;
+const newest = stars[n - 1];
+const recent = stars.slice(-10).reverse();
+const tones = ["warm", "cool", "neutral"] as const;
+const toneVar = { warm: "--star-warm", cool: "--star-cool", neutral: "--star" };
+const d = stars.map((s, i) => `${i ? "L" : "M"}${s.x} ${s.y}`).join("");
 const label = n
-  ? `Commit constellation: ${n} commits to this site, from ${day(nodes[0].date)} to ${day(newest.date)}, oldest at the center. Each one links to the commit on GitHub; arrow keys move between them.`
+  ? `Commit constellation: ${n} commits to this site drawn as stars, from ${day(stars[0].date)} to ${day(newest.date)}, oldest at the center. Each one links to the commit on GitHub; arrow keys move between them.`
   : "Commit constellation: no commits yet.";
-const describe = (k: (typeof nodes)[number]) => `${k.short}, ${day(k.date)}: ${k.subject}`;
+const describe = (s: Star) => `${s.short}, ${day(s.date)}: ${s.subject}`;
 ---
 <figure class="constellation" data-drag="figure" data-constellation>
   <div class="c-frame" data-c-frame>
-  <svg viewBox={`0 0 ${VIEW} ${VIEW}`} role="group" aria-label={label}>
-    <path
-      class="c-path"
-      d={d}
-      stroke-dasharray={`${length} ${length}`}
-      stroke-dashoffset={length}
-      data-c-path
-      data-length={length}
-      aria-hidden="true"
-    />
-    {milestones.map((k) => (
-      <circle class="c-milestone" cx={k.x} cy={k.y} r={k.r + 1.4} data-c-label-for={k.i} aria-hidden="true" />
-    ))}
-    {nodes.map((k) => (
-      <a
-        href={`${REPO}/commit/${k.hash}`}
-        target="_blank"
-        rel="noopener"
-        tabindex={k === newest ? 0 : -1}
-        aria-label={describe(k)}
-        data-c-node
-        data-along={k.along}
-        data-short={k.short}
-        data-date={day(k.date)}
-        data-subject={k.subject}
-        data-tags={k.tags.join(" ") || undefined}
-      >
-        <circle class={`c-node t-${k.type}`} cx={k.x} cy={k.y} r={k.r} />
-      </a>
-    ))}
-    <circle class="c-ring" r="0" data-c-ring aria-hidden="true" />
-  </svg>
-  {milestones.map((k) => (
-    <span
-      class:list={["c-label mono", { left: k.x > 70 }]}
-      style={`--x:${k.x}%; --y:${k.y}%; --gap:${((k.r + 2.4) / VIEW) * 100}%`}
-      data-c-label-for={k.i}
-      aria-hidden="true"
-    >{k.tags.join(", ")}</span>
-  ))}
-  <div class="c-tip mono" data-c-tip hidden aria-hidden="true">
-    <span class="c-tip-meta" data-c-tip-meta></span>
-    <span data-c-tip-subject></span>
-  </div>
+    <svg viewBox={`0 0 ${VIEW} ${VIEW}`} role="group" aria-label={label}>
+      <defs>
+        {tones.map((t) => (
+          <radialGradient id={`c-halo-${t}`}>
+            <stop offset="0" style={`stop-color: var(${toneVar[t]}); stop-opacity: 0.4`} />
+            <stop offset="0.3" style={`stop-color: var(${toneVar[t]}); stop-opacity: 0.12`} />
+            <stop offset="1" style={`stop-color: var(${toneVar[t]}); stop-opacity: 0`} />
+          </radialGradient>
+        ))}
+      </defs>
+      <g class="c-dust" data-c-dust aria-hidden="true">
+        <path class="c-dust-a" d={dust[0].join("")} />
+        <path class="c-dust-b" d={dust[1].join("")} />
+      </g>
+      <path
+        class="c-path"
+        d={d}
+        stroke-dasharray={`${length} ${length}`}
+        stroke-dashoffset={length}
+        data-c-path
+        data-length={length}
+        aria-hidden="true"
+      />
+      <g aria-hidden="true">
+        {figures.map((f, fi) => (
+          <g class="c-fig" data-c-fig={fi}>
+            {f.lines.map(([a, b]) => (
+              <line x1={stars[a].x} y1={stars[a].y} x2={stars[b].x} y2={stars[b].y} pathLength="1" data-c-line />
+            ))}
+          </g>
+        ))}
+      </g>
+      {stars.map((s) => (
+        <a
+          href={`${REPO}/commit/${s.hash}`}
+          target="_blank"
+          rel="noopener"
+          tabindex={s === newest ? 0 : -1}
+          aria-label={describe(s)}
+          data-c-node
+          data-x={s.x}
+          data-y={s.y}
+          data-r={s.r}
+          data-along={s.along}
+          data-short={s.short}
+          data-date={day(s.date)}
+          data-subject={s.subject}
+          data-tags={s.tags.join(" ") || undefined}
+          data-fig={s.figure ?? undefined}
+        >
+          <g
+            class:list={["c-star", `tone-${s.tone}`, { "c-tw": s.twinkle !== null }]}
+            style={`--o:${s.o}; --tw-f:${s.twinkle ?? 0}; --tw-delay:-${s.twinkleDelay}s`}
+          >
+            {s.bright && <circle class="c-halo" cx={s.x} cy={s.y} r={s.r * 4.5} fill={`url(#c-halo-${s.tone})`} />}
+            <circle class="c-core" cx={s.x} cy={s.y} r={s.r} />
+          </g>
+        </a>
+      ))}
+      <circle class="c-ring" r="0" data-c-ring aria-hidden="true" />
+    </svg>
+    {figures.map((f, fi) => {
+      const s = stars[f.milestone];
+      return (
+        <span
+          class:list={["c-label", { left: s.x > 70 }]}
+          style={`--x:${s.x}%; --y:${s.y}%; --gap:${((s.r * 2.5 + 1.5) / VIEW) * 100}%`}
+          data-c-label-for={fi}
+          aria-hidden="true"
+        >{s.tags.join(", ")}</span>
+      );
+    })}
+    <div class="c-tip mono" data-c-tip hidden aria-hidden="true">
+      <span class="c-tip-meta" data-c-tip-meta></span>
+      <span data-c-tip-subject></span>
+    </div>
   </div>
   <figcaption class="mono" data-type>{n} commits to this site, oldest at the center</figcaption>
   <div class="visually-hidden">
     <p>The 10 most recent commits:</p>
     <ol>
-      {recent.map((k) => <li><a href={`${REPO}/commit/${k.hash}`} tabindex="-1">{describe(k)}</a></li>)}
+      {recent.map((s) => <li><a href={`${REPO}/commit/${s.hash}`} tabindex="-1">{describe(s)}</a></li>)}
     </ol>
   </div>
 </figure>
@@ -95,11 +128,20 @@ const describe = (k: (typeof nodes)[number]) => `${k.short}, ${day(k.date)}: ${k
     overflow: visible;
   }
 
-  /* Color by commit type (DESIGN.md §8): existing tokens only. */
-  .c-node { fill: var(--muted); }
-  .t-feat { fill: var(--fg); }
-  .t-fix { fill: var(--accent); }
-  .t-docs { fill: none; stroke: var(--muted); stroke-width: 0.3; }
+  /* Stars (DESIGN.md §8): filled points, near-white with a slight temperature shift. */
+  .c-star { opacity: var(--o); }
+  .c-core { fill: var(--star); }
+  .tone-warm .c-core { fill: var(--star-warm); }
+  .tone-cool .c-core { fill: var(--star-cool); }
+  .c-tw {
+    animation: c-twinkle calc(var(--twinkle-min) + (var(--twinkle-max) - var(--twinkle-min)) * var(--tw-f))
+      var(--ease) var(--tw-delay) infinite alternate;
+  }
+  @keyframes c-twinkle { to { opacity: calc(var(--o) * 0.45); } }
+
+  .c-dust path { fill: var(--star); }
+  .c-dust-a { opacity: 0.1; }
+  .c-dust-b { opacity: 0.2; }
 
   [data-c-node] {
     transform-box: fill-box;
@@ -107,22 +149,25 @@ const describe = (k: (typeof nodes)[number]) => `${k.short}, ${day(k.date)}: ${k
     transition: opacity var(--dur-ui) var(--ease);
   }
   [data-c-node]:focus { outline: none; } /* the accent ring is the focus indicator */
-  [data-c-node][data-dim], [data-c-label-for][data-dim] { opacity: 0.2; }
-  .c-milestone { transition: opacity var(--dur-ui) var(--ease); }
 
   .c-path {
     fill: none;
     stroke: var(--muted);
-    stroke-width: 0.25;
+    stroke-width: 0.18;
     stroke-linejoin: round;
     opacity: 0.5;
-    transition: stroke-dashoffset var(--dur-ui) var(--ease);
   }
-  .c-milestone { fill: none; stroke: var(--muted); stroke-width: 0.25; }
+  .c-fig {
+    stroke: var(--muted);
+    stroke-width: 0.18;
+    stroke-linecap: round;
+    opacity: 0.25;
+    transition: opacity var(--dur-ui) var(--ease);
+  }
   .c-ring {
     fill: none;
     stroke: var(--accent);
-    stroke-width: 0.5;
+    stroke-width: 0.45;
     opacity: 0;
     pointer-events: none;
   }
@@ -132,14 +177,22 @@ const describe = (k: (typeof nodes)[number]) => `${k.short}, ${day(k.date)}: ${k
     left: calc(var(--x) + var(--gap));
     top: var(--y);
     transform: translateY(-50%);
-    padding: 0 var(--space-1);
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    letter-spacing: var(--tracking-label);
     color: var(--muted);
-    background: var(--bg);
     white-space: nowrap;
     pointer-events: none;
     transition: opacity var(--dur-ui) var(--ease);
   }
   .c-label.left { left: auto; right: calc(100% - var(--x) + var(--gap)); }
+
+  /* Hovering a milestone: its figure brightens, the rest of the sky dims. */
+  .c-dust { transition: opacity var(--dur-ui) var(--ease); }
+  [data-focus] .c-dust,
+  [data-focus] .c-label:not([data-lit]) { opacity: 0.45; }
+  [data-focus] .c-fig:not([data-lit]) { opacity: 0.11; }
+  .c-fig[data-lit] { opacity: 0.6; }
 
   .c-tip {
     position: absolute;
@@ -162,7 +215,8 @@ const describe = (k: (typeof nodes)[number]) => `${k.short}, ${day(k.date)}: ${k
   figcaption { margin-top: var(--space-3); color: var(--muted); }
 
   @media (prefers-reduced-motion: reduce) {
-    [data-c-node], .c-path, .c-label, .c-milestone { transition: none; }
+    .c-tw { animation: none; }
+    [data-c-node], .c-fig, .c-label, .c-dust { transition: none; }
   }
 </style>
 
@@ -172,13 +226,9 @@ const describe = (k: (typeof nodes)[number]) => `${k.short}, ${day(k.date)}: ${k
   if (fig && frame) {
     const svg = fig.querySelector("svg")!;
     const links = [...fig.querySelectorAll<SVGAElement>("[data-c-node]")];
-    const pts = links.map((a) => {
-      const c = a.firstElementChild as SVGCircleElement;
-      return { x: +c.getAttribute("cx")!, y: +c.getAttribute("cy")!, r: +c.getAttribute("r")! };
-    });
-    const path = fig.querySelector<SVGPathElement>("[data-c-path]")!;
-    const total = Number(path.dataset.length);
-    const marks = [...fig.querySelectorAll<Element>("[data-c-label-for]")];
+    const pts = links.map((a) => ({ x: Number(a.dataset.x), y: Number(a.dataset.y), r: Number(a.dataset.r) }));
+    const figs = [...fig.querySelectorAll<SVGGElement>("[data-c-fig]")];
+    const labels = [...fig.querySelectorAll<HTMLElement>(".c-label")];
     const ring = fig.querySelector<SVGCircleElement>("[data-c-ring]")!;
     const tip = fig.querySelector<HTMLElement>("[data-c-tip]")!;
     const tipMeta = fig.querySelector<HTMLElement>("[data-c-tip-meta]")!;
@@ -186,11 +236,15 @@ const describe = (k: (typeof nodes)[number]) => `${k.short}, ${day(k.date)}: ${k
     const building = () => document.documentElement.classList.contains("b-active");
     let active = -1;
 
-    /** Commits after a milestone dim, and the path draws through every commit up to it. */
-    const trace = (upTo: number) => {
-      links.forEach((a, k) => a.toggleAttribute("data-dim", upTo >= 0 && k > upTo));
-      for (const m of marks) m.toggleAttribute("data-dim", upTo >= 0 && Number(m.getAttribute("data-c-label-for")) > upTo);
-      path.style.strokeDashoffset = upTo >= 0 ? String(total - Number(links[upTo].dataset.along)) : "";
+    /** Hovering a milestone: light up its figure, dim the rest of the sky. One generated
+        rule instead of touching every star keeps this cheap at 500 stars. */
+    const focusRule = document.createElement("style");
+    document.head.append(focusRule);
+    const focusFigure = (f: string | undefined) => {
+      frame.toggleAttribute("data-focus", f !== undefined);
+      focusRule.textContent = f === undefined ? "" : `[data-c-frame][data-focus] [data-c-node]:not([data-fig="${f}"]) { opacity: 0.45; }`;
+      for (const g of figs) g.toggleAttribute("data-lit", f !== undefined && g.dataset.cFig === f);
+      for (const l of labels) l.toggleAttribute("data-lit", f !== undefined && l.dataset.cLabelFor === f);
     };
 
     const place = (i: number) => {
@@ -198,7 +252,7 @@ const describe = (k: (typeof nodes)[number]) => `${k.short}, ${day(k.date)}: ${k
       const w = frame.clientWidth, h = frame.clientHeight;
       const tw = tip.offsetWidth, th = tip.offsetHeight;
       const cx = (p.x / 100) * w;
-      const gap = 8 + (p.r / 100) * w;
+      const gap = 10 + (p.r / 100) * w;
       const above = (p.y / 100) * h - gap - th;
       const top = above >= 0 ? above : (p.y / 100) * h + gap;
       const left = Math.min(Math.max(cx - tw / 2, 0), w - tw);
@@ -211,31 +265,33 @@ const describe = (k: (typeof nodes)[number]) => `${k.short}, ${day(k.date)}: ${k
       if (i < 0) {
         tip.hidden = true;
         ring.style.opacity = "0";
-        trace(-1);
+        focusFigure(undefined);
         return;
       }
       const a = links[i], p = pts[i];
       ring.setAttribute("cx", String(p.x));
       ring.setAttribute("cy", String(p.y));
-      ring.setAttribute("r", String(p.r + 0.9));
+      ring.setAttribute("r", String(Math.max(p.r + 0.9, 1.5)));
       ring.style.opacity = "1";
       const tags = a.dataset.tags ? ` · ${a.dataset.tags}` : "";
       tipMeta.textContent = `${a.dataset.short} · ${a.dataset.date}${tags}`;
       tipSubject.textContent = a.dataset.subject ?? "";
       tip.hidden = false;
       place(i);
-      trace(a.dataset.tags ? i : -1);
+      focusFigure(a.dataset.tags ? a.dataset.fig : undefined);
     };
 
-    /** The node nearest a pointer, if it's close enough to mean that node. */
-    const nearest = (e: { clientX: number; clientY: number }) => {
+    /** The star nearest a pointer, if it's close enough to mean that star. The stars are
+        tiny, so the reach is generous: about 13px for a mouse, 20px for a finger. */
+    const nearest = (e: { clientX: number; clientY: number }, reach: number) => {
       const b = svg.getBoundingClientRect();
       const x = ((e.clientX - b.left) / b.width) * 100;
       const y = ((e.clientY - b.top) / b.height) * 100;
+      const units = (reach / b.width) * 100;
       let best = -1, bestD = Infinity;
       pts.forEach((p, k) => {
         const d = Math.hypot(p.x - x, p.y - y);
-        if (d < Math.max(p.r + 1.5, 2.5) && d < bestD) { best = k; bestD = d; }
+        if (d < Math.max(p.r * 2.5, units) && d < bestD) { best = k; bestD = d; }
       });
       return best;
     };
@@ -244,7 +300,7 @@ const describe = (k: (typeof nodes)[number]) => `${k.short}, ${day(k.date)}: ${k
     svg.addEventListener("pointerdown", (e) => { pointerType = e.pointerType; });
     svg.addEventListener("pointermove", (e) => {
       if (e.pointerType !== "mouse" || building()) return;
-      const i = nearest(e);
+      const i = nearest(e, 13);
       svg.style.cursor = i >= 0 ? "pointer" : "";
       show(i);
     });
@@ -253,9 +309,10 @@ const describe = (k: (typeof nodes)[number]) => `${k.short}, ${day(k.date)}: ${k
       if (e.detail === 0) return; // keyboard Enter: let the focused link open itself
       e.preventDefault();
       if (building()) return;
-      const i = nearest(e);
-      // Touch: the first tap shows the tooltip, a second tap on the same node opens it.
-      if (pointerType !== "mouse" && i !== active) return show(i);
+      const touch = pointerType !== "mouse";
+      const i = nearest(e, touch ? 20 : 13);
+      // Touch: the first tap shows the tooltip, a second tap on the same star opens it.
+      if (touch && i !== active) return show(i);
       if (i >= 0) window.open(links[i].href.baseVal, "_blank", "noopener");
     });
     document.addEventListener("pointerdown", (e) => {
