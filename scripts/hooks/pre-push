@@ -1,0 +1,13 @@
+#!/bin/sh
+# Refresh the constellation's commit data before every push (ADR 0010).
+# Vercel builds from a shallow clone and can't see the full history, so the site uses the
+# committed src/data/commits.json. If it's out of date, commit a refresh and stop the push;
+# push again to include it. (Refresh commits are left out of the constellation, so the
+# second push passes.)
+OUT=src/data/commits.json
+npm run --silent commits >/dev/null || { echo "pre-push: npm run commits failed" >&2; exit 1; }
+if ! git diff --quiet -- "$OUT" || ! git diff --cached --quiet -- "$OUT"; then
+  git commit -q --only -m "chore: refresh commits.json" -- "$OUT" || exit 1
+  echo "pre-push: committed a refresh of $OUT. Push again to include it." >&2
+  exit 1
+fi
