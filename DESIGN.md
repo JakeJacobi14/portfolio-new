@@ -59,14 +59,27 @@ Dark only. No light mode for now.
 - Weights: 400 body, 500 headings. Line height 1.5 body, 1.1 display.
 
 ## 6. Layout & spacing
-- Grid: none. A single left-aligned column, except the intro: from 960px up it is two
-  columns (text 3fr, central element 2fr). Breakpoints: `640px`, `960px`.
+- Grid: 12 columns from 960px, 8 from 640px, 4 below (breakpoints `640px`, `960px`).
+  Column gap `24px` (`--grid-gap`). Content is centered with equal side margins; everything
+  (header, sections, footer, control bar) sits on the same columns. ADR 0009.
 - Spacing scale: 4 / 8 / 12 / 16 / 24 / 32 / 48 / 64 / 96 / 128 px (`--space-1` to `--space-10`)
-- Max widths: text `65ch`, page `1120px`
+- Max widths: text `65ch`, content `1128px` (`--page-max`, gutters sit outside it). At full
+  width each column is 72px, so every column edge lands on a dot of the dot grid.
 - Side gutter: 16px under 640px, 32px above
 - Corner radius: `0` (token `--radius`)
-- Lines: 1px hairlines in `--muted` at reduced opacity separate list rows. No boxes or cards.
+- Lines: 1px hairlines in `--muted` at 35% (`--line`) separate list rows. No boxes or cards.
   The central element's frame uses the same hairline.
+- Background (ADR 0009), bottom to top, all decorative (`aria-hidden`):
+  - **Dot grid:** 2px dots of `--muted` every `24px` (`--dot-step`) at `--dot-opacity` (0.2),
+    aligned to the content's left edge. The agents snap to it during the build-in.
+  - **Cursor glow:** dots within `120px` (`--glow-radius`) of the pointer rise to
+    `--dot-opacity-hot` (0.55). Only for a fine pointer that can hover, and never with
+    reduced motion.
+  - **Column guides:** a hairline at both edges of every column. `--guide-opacity-build`
+    (0.35) while the agents draw them, then `--guide-opacity-rest` (0.06) for good.
+  - **Registration marks:** a `12px` `+` in `--line` at the top corners of each section's
+    content box, centered in the space above it; the footer also gets bottom corners.
+  - **Grain:** optional, undecided. SVG noise at `--grain-opacity` (0.05).
 
 ## 7. Motion
 - One signature moment (the build-in). Everything else is quiet: fades and small offsets only.
@@ -83,7 +96,10 @@ Dark only. No light mode for now.
   - **Drag and resize:** boxes (nav, central element, Replay button) appear small and out of place with a
     1px `--accent` selection outline, get dragged to their spot, then resized from the
     bottom-right corner to full size.
-  The first screen is built on load; guides fade when it's done. Every later section starts
+  The build starts with one agent sweeping across the top while the column guides draw
+  down the screen. Agents snap to the dot grid wherever they're not tied to an element
+  (arriving, picking up a box), and a snap leaves a brief `--accent` tick on that dot.
+  The first screen is built on load; guides fade to their resting opacity when it's done. Every later section starts
   empty and is built when it scrolls into view (its top 15% into the screen, or visible at
   the end of the page): agents come in from the side, build it, and leave. Tasks go to
   whichever agent is free first.
@@ -115,8 +131,9 @@ Goal: clean, and not obviously vibe-coded. Many of these come from a list of com
 **Layout**
 - No stock "hero + 3 feature cards in a row" layouts. No bento grids.
 - No fake terminal windows (traffic-light dots, `$` prompts). Mono labels are fine.
-- No decorative dot-grid backgrounds. Faint guide lines are allowed only as part of the
-  build-in, and they fade once it ends.
+- No decorative dot-grid backgrounds. The one exception is the 24px dot grid in §6: the
+  agents snap to it, so it has a job. Faint guide lines are allowed only as part of the
+  build-in, and they fade to near-invisible (§6) once it ends. (Amended 2026-11-07, ADR 0009.)
 
 **Icons**
 - No emoji, no icon libraries (Lucide etc.), no sparkle icons, no checkmark bullets.
