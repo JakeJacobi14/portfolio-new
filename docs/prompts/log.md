@@ -29,3 +29,24 @@ before I need something visual to react to. We switched from interviewing to Cla
 concrete defaults that I accept or change.
 
 ---
+
+## 2026-11-07 — one big multi-phase prompt for the whole redesign
+**Prompt (excerpt):**
+> Big update: reformat the home page, add a background system, build the "commit
+> constellation" as the hero's central image, and stub out the remaining pages. [...] Work
+> in the phases below and STOP for my approval at each checkpoint.
+
+Phase 1 asked for a 12-column grid, a faint dot grid the agents snap to, column guides,
+registration marks, a cursor glow on the dots, and optional grain.
+
+**Result:** The checkpoints worked: Claude planned first, raised conflicts with DESIGN.md
+(the dot-grid ban, Geist Mono, em dashes) and stopped after each phase. But Phase 1 was a
+miss. Almost all of it was too subtle to see at normal viewing, and the one visible part,
+the vertical column guides, was the part I disliked. After two rounds ("remove the grid and
+lines", then "I can't tell the difference in any of your other changes") everything was
+reverted and we built only the constellation.
+**What I changed / learned:** Start with the change I'll actually see. A long spec of quiet
+background details reads well on paper but gives me nothing to react to, and it's expensive
+to undo. The constellation, one visible thing at a time, went much better.
+
+---
