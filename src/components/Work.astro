@@ -1,4 +1,5 @@
 ---
+import RegMarks from "./RegMarks.astro";
 // Placeholder entries until real projects are chosen (DESIGN.md §8).
 const projects = [
   { title: "This portfolio", blurb: "A site that builds itself, and a record of how it was made.", meta: "2026" },
@@ -6,9 +7,10 @@ const projects = [
   { title: "Project three (placeholder)", blurb: "One line on the problem and what you built.", meta: "Year" },
 ];
 ---
-<section id="work" class="work" aria-labelledby="work-title">
-  <h2 id="work-title" class="label mono" data-type>Selected work</h2>
-  <ul>
+<section id="work" class="work section container grid" aria-labelledby="work-title">
+  <RegMarks />
+  <h2 id="work-title" class="label mono full" data-type>Selected work</h2>
+  <ul class="full rows">
     {projects.map((p) => (
       <li class="row" data-row>
         <h3 data-type>{p.title}</h3>
@@ -20,21 +22,22 @@ const projects = [
 </section>
 
 <style>
-  .work {
-    max-width: var(--page-max);
-    margin: 0 auto;
-    padding: 0 var(--gutter) var(--space-9);
-  }
-  .label { color: var(--muted); font-weight: 400; margin-bottom: var(--space-4); }
-  .row {
+  .rows, .row {
     display: grid;
-    grid-template-columns: 1fr auto;
-    gap: var(--space-1) var(--space-5);
+    grid-template-columns: subgrid;
+  }
+  .row {
+    grid-column: 1 / -1;
+    row-gap: var(--space-1);
     padding: var(--space-5) 0;
     border-top: 1px solid color-mix(in srgb, var(--muted) 35%, transparent);
   }
   .row:last-child { border-bottom: 1px solid color-mix(in srgb, var(--muted) 35%, transparent); }
   h3 { font-size: var(--text-md); font-weight: 500; }
-  .blurb { grid-column: 1; color: var(--muted); max-width: var(--measure); }
-  .meta { grid-column: 2; grid-row: 1; color: var(--muted); align-self: baseline; }
+  h3, .blurb { grid-column: 1 / -2; }
+  .blurb { color: var(--muted); max-width: var(--measure); }
+  .meta { grid-column: -2 / -1; grid-row: 1; justify-self: end; color: var(--muted); align-self: baseline; }
+  @media (min-width: 960px) {
+    h3, .blurb { grid-column: 1 / 9; }
+  }
 </style>

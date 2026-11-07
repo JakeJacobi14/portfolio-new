@@ -34,9 +34,24 @@
   --space-10: 128px;
 
   --measure: 65ch;
-  --page-max: 1120px;
+  --page-max: 1128px; /* content width; gutters sit outside it */
   --gutter: var(--space-4);
   --radius: 0;
+
+  /* Grid (DESIGN.md §6, ADR 0009) */
+  --cols: 4;
+  --grid-gap: 24px;
+
+  /* Lines and background (DESIGN.md §6) */
+  --line: color-mix(in srgb, var(--muted) 35%, transparent);
+  --dot-step: 24px;
+  --dot-opacity: 0.2;
+  --dot-opacity-hot: 0.55;
+  --glow-radius: 120px;
+  --guide-opacity-build: 0.35;
+  --guide-opacity-rest: 0.06;
+  --mark-size: 12px;
+  --grain-opacity: 0.05;
 
   /* Motion (DESIGN.md §7) */
   --dur-micro: 150ms;
@@ -46,5 +61,8 @@
 }
 
 @media (min-width: 640px) {
-  :root { --gutter: var(--space-6); }
+  :root { --gutter: var(--space-6); --cols: 8; }
+}
+@media (min-width: 960px) {
+  :root { --cols: 12; }
 }
