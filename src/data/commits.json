@@ -352,5 +352,60 @@
     "insertions": 0,
     "deletions": 0,
     "tags": []
+  },
+  {
+    "hash": "dc86b9132b8336dbae53c5f3049c8ddb2f05f313",
+    "short": "dc86b91",
+    "date": "2026-11-07T18:34:45-05:00",
+    "subject": "feat: commits run before every build, log history depth, skip refreshes and undone work",
+    "type": "feat",
+    "files": 4,
+    "insertions": 20,
+    "deletions": 93,
+    "tags": []
+  },
+  {
+    "hash": "34f86380d2bd71089a478f33ae40ff7dc9bf6c84",
+    "short": "34f8638",
+    "date": "2026-11-07T18:42:22-05:00",
+    "subject": "feat: commits --require-full fails a build that can't see the full history",
+    "type": "feat",
+    "files": 1,
+    "insertions": 7,
+    "deletions": 1,
+    "tags": []
+  },
+  {
+    "hash": "bf844e2932f4d3b60c1c5e09f6231d5965190162",
+    "short": "bf844e2",
+    "date": "2026-11-07T18:42:57-05:00",
+    "subject": "docs: ADR 0009 constellation as a night sky; DESIGN.md star colors, label size, twinkle, §8, §9",
+    "type": "docs",
+    "files": 3,
+    "insertions": 103,
+    "deletions": 20,
+    "tags": []
+  },
+  {
+    "hash": "9fe8683cba42eb7d02d25a58ab9b5b9ef5b70e62",
+    "short": "9fe8683",
+    "date": "2026-11-07T18:43:03-05:00",
+    "subject": "feat: constellation v2, a night sky with stardust, milestone figures and twinkle",
+    "type": "feat",
+    "files": 3,
+    "insertions": 311,
+    "deletions": 139,
+    "tags": []
+  },
+  {
+    "hash": "2d5a4500cd40439244ca51724e779bc525d76b7e",
+    "short": "2d5a450",
+    "date": "2026-11-07T18:43:03-05:00",
+    "subject": "chore: fake commits get milestones at any size",
+    "type": "chore",
+    "files": 1,
+    "insertions": 2,
+    "deletions": 1,
+    "tags": []
   }
 ]
