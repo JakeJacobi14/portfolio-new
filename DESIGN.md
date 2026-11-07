@@ -94,8 +94,28 @@ Dark only. No light mode for now.
 
 ## 8. Pages & sections
 - Home: intro (with a central element), selected work, about, contact
-- Central element: TBD. For now a wireframe placeholder (a framed box with two diagonals)
-  that the agents build.
+- Central element: the **commit constellation** (ADR 0008), in the existing framed box.
+  Every node is a real commit to this repo (`npm run commits` → `src/data/commits.json`).
+  - **Layout:** phyllotaxis. Commit *i* (oldest first) sits at radius `c·√i`, angle
+    `i·137.5°`, with a small offset seeded from its hash, so the same data always draws the
+    same image. Nodes only; no lines at rest.
+  - **Size:** radius grows with lines changed, log-scaled, capped so nodes never overlap.
+  - **Color by type** (existing tokens only): `feat` filled `--fg`; `fix` filled `--accent`;
+    `docs` a hollow `--muted` ring; `style`, `refactor`, `chore` and anything else filled
+    `--muted`.
+  - **Milestones** (git tags): a `--muted` hairline ring around the node and the tag name in
+    IBM Plex Mono at `--text-xs`, `--muted`.
+  - **Hover / focus** a node: an `--accent` ring and a tooltip (short hash, date, subject;
+    mono, `--text-xs`, `--bg` with a `--muted` 35% hairline border). Click opens the commit
+    on GitHub in a new tab. Touch: first tap shows the tooltip, second tap opens.
+    Arrow keys step through commits in order.
+  - **Hover a milestone:** commits after it dim to 20% opacity and the path through every
+    commit up to it draws in a `--muted` hairline (`--dur-ui`).
+  - **Build-in:** after the box is dragged in, an agent places the nodes oldest to newest
+    while the path draws between them, in about 2s whatever the count (nodes are placed in
+    batches). The path then fades out. Reduced motion: the finished image.
+  - **Accessible:** a group label describing the image, a link per node with its hash, date
+    and subject, and a visually hidden list of the 10 most recent commits.
 - Project pages (case studies): problem → process → outcome → what I'd change
 - This site's own case study (built from `docs/`)
 
