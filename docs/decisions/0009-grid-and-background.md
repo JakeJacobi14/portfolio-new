@@ -1,7 +1,7 @@
 # 0009 — 12-column grid and a background the agents use
 
 **Date:** 2026-11-07
-**Status:** accepted (grain still undecided)
+**Status:** accepted; background part revised the same day (see Update)
 
 ## Context
 The page was a single left-aligned column inside a 1120px box. Each section set its own
@@ -36,3 +36,10 @@ concept instead of decoration.
   motion; worth watching whether it pulls attention from the constellation.
 - Registration marks and dots are "the paper": they're there before the agents arrive,
   so they aren't built by them.
+
+## Update (2026-11-07, after seeing it)
+Grain: off. The dot grid and the resting column guides were too distracting, so I removed
+them, along with the cursor glow (it only lit up dots) and the snapping (no visible grid to
+snap to). What stays: the 12-column grid, the column guides as a build-in-only step that
+fades out completely (as before), and the registration marks. §9's dot-grid rule is back to
+its original wording.
