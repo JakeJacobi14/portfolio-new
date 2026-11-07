@@ -11,7 +11,7 @@
     "preview": "astro preview",
     "astro": "astro",
     "commits": "node scripts/commits.mjs",
-    "prebuild": "node scripts/commits.mjs"
+    "prebuild": "node scripts/commits.mjs --require-full"
   },
   "dependencies": {
     "astro": "^7.4.5",
