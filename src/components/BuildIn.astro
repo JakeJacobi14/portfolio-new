@@ -61,14 +61,6 @@ const agents = [0, 1, 2, 3];
   }
   .bi-guide { background: var(--muted); opacity: 0.5; }
   .bi-rule { background: color-mix(in srgb, var(--muted) 35%, transparent); }
-  /* A snap to the dot grid leaves a brief tick on the dot (DESIGN.md §7). */
-  .bi-tick {
-    position: absolute;
-    width: 4px;
-    height: 4px;
-    margin: -2px 0 0 -2px;
-    background: var(--accent);
-  }
 </style>
 
 <script>
@@ -100,22 +92,6 @@ const agents = [0, 1, 2, 3];
   const guides = document.querySelector<HTMLElement>("[data-guides]")!;
   /** Guide columns showing at this width (4, 8 or 12). */
   const guideCols = () => qa("[data-guide-col]").filter((c) => c.offsetParent !== null);
-
-  /** The dot grid (DESIGN.md §6): a dot on the content's left edge, then every 24px; rows
-      start 12px from the top of the page. */
-  const grid = { left: 0, step: 24 };
-  const measureGrid = () => {
-    const first = guideCols()[0];
-    grid.step = cssNum("--dot-step") || 24;
-    grid.left = first ? box(first).x : 0;
-  };
-  const snap = (x: number, y: number) => {
-    const h = grid.step / 2;
-    return {
-      x: grid.left + Math.round((x - grid.left) / grid.step) * grid.step,
-      y: h + Math.round((y - h) / grid.step) * grid.step,
-    };
-  };
 
   /** One build of the page: shared state, a queue of tasks, and the agents that do them. */
   class Director {
@@ -178,27 +154,10 @@ const agents = [0, 1, 2, 3];
       this.present = true;
       this.d.updateSkip();
     }
-    /** Come back in from a side edge of the current screen, on a row of dots. */
+    /** Come back in from a side edge of the current screen. */
     arrive() {
       const left = Math.random() < 0.5;
-      this.enter(left ? -20 : innerWidth + 20, snap(0, scrollY + innerHeight * (0.3 + Math.random() * 0.5)).y);
-    }
-    /** Mark a snap: a small accent tick on the dot that fades out. */
-    tick(x: number, y: number) {
-      const t = document.createElement("span");
-      t.className = "bi-tick";
-      t.style.left = `${x}px`;
-      t.style.top = `${y}px`;
-      overlay.append(t);
-      this.d.lines.push(t);
-      this.d.play(t, { opacity: [1, 0] }, { duration: 0.6 }).then(() => t.remove(), () => {});
-    }
-    /** Move to the dot nearest a point, and tick it on arrival. */
-    async moveSnapped(x: number, y: number) {
-      const p = snap(x, y);
-      await this.move(p.x, p.y);
-      this.tick(p.x, p.y);
-      return p;
+      this.enter(left ? -20 : innerWidth + 20, scrollY + innerHeight * (0.3 + Math.random() * 0.5));
     }
     async move(x: number, y: number, duration = travel(Math.hypot(x - this.x, y - this.y))) {
       const from = `translate(${this.x}px, ${this.y}px)`;
@@ -269,9 +228,7 @@ const agents = [0, 1, 2, 3];
     async drag(el: HTMLElement, to: Box, from: { dx: number; dy: number; s: number }) {
       const at = (dx: number, dy: number, s: number) => `translate(${dx}px, ${dy}px) scale(${s})`;
       const grab = Math.min(10, to.w * from.s * 0.3);
-      // Pick the box up on a dot, so it starts out snapped to the grid.
-      const p = await this.moveSnapped(to.x + from.dx + grab, to.y + from.dy + grab);
-      from = { ...from, dx: p.x - to.x - grab, dy: p.y - to.y - grab };
+      await this.move(to.x + from.dx + grab, to.y + from.dy + grab);
       el.style.transform = at(from.dx, from.dy, from.s);
       el.style.opacity = "1";
       await this.play(el, { opacity: [0, 1] }, { duration: 0.2 });
@@ -316,7 +273,6 @@ const agents = [0, 1, 2, 3];
       el.style.outlineOffset = "2px";
     }
     for (const g of qa<SVGElement>("[data-diag]")) g.style.clipPath = "inset(50%)";
-    measureGrid();
     guides.style.opacity = String(cssNum("--guide-opacity-build"));
     for (const c of guideCols()) c.style.clipPath = "inset(0 0 100% 0)";
     root.classList.remove("is-building");
@@ -411,7 +367,8 @@ const agents = [0, 1, 2, 3];
       const H = root.scrollHeight;
       const first = box(cols[0]);
       const last = box(cols[cols.length - 1]);
-      const start = await a.moveSnapped(first.x, top + 36);
+      const start = { y: top + 36 };
+      await a.move(first.x, start.y);
       const sweep = Math.min(1.2, 0.5 + cols.length * 0.06);
       const from = `inset(${top}px 0 ${H - top}px 0)`;
       const drawn = cols.map((c) => {
@@ -422,7 +379,6 @@ const agents = [0, 1, 2, 3];
         });
       });
       await Promise.all([...drawn, a.move(last.x + last.w, start.y, sweep)]);
-      a.tick(last.x + last.w, start.y);
       for (const c of cols) c.style.clipPath = "";
     };
     const figureTask: Task = async (a) => {
@@ -546,7 +502,7 @@ const agents = [0, 1, 2, 3];
       await d.whenIdle();
       await Promise.all([
         ...qa(".bi-guide").map((g) => d.play(g, { opacity: [0.5, 0] }, { duration: 0.6 })),
-        d.play(guides, { opacity: [cssNum("--guide-opacity-build"), cssNum("--guide-opacity-rest")] }, { duration: 0.6 }),
+        d.play(guides, { opacity: [cssNum("--guide-opacity-build"), 0] }, { duration: 0.6 }),
       ]);
       guides.style.opacity = "";
       try { sessionStorage.setItem("built", "1"); } catch {}
