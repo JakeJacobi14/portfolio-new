@@ -1,0 +1,105 @@
+---
+// Click star (DESIGN.md §7): a click on the page leaves a star where you clicked, which pops
+// in and fades out, with one very quiet tick, the site's only sound. Not on links, buttons or
+// form fields, which already do something.
+---
+<style is:global>
+  .click-star {
+    position: fixed;
+    z-index: 60;
+    width: 16px; /* the halo: 3.2 × the 5px core */
+    height: 16px;
+    margin: -8px 0 0 -8px; /* centered on the click; transforms stay free for the pop */
+    border-radius: 50%;
+    background: radial-gradient(circle, color-mix(in srgb, var(--star-warm) 28%, transparent), transparent 70%);
+    pointer-events: none;
+    opacity: 0;
+  }
+  .click-star::after {
+    content: "";
+    position: absolute;
+    inset: 5.5px; /* a 5px core in the middle */
+    border-radius: 50%;
+    background: var(--star-warm);
+  }
+</style>
+
+<script>
+  const MAX = 12; // stars on screen at once
+  const VOLUME = 0.15; // the tick, kept very quiet
+  const IGNORE = "a, button, input, textarea, select, label, summary, dialog, [role='button'], [contenteditable]";
+
+  const root = document.documentElement;
+  const still = matchMedia("(prefers-reduced-motion: reduce)");
+  const css = (name: string) => getComputedStyle(root).getPropertyValue(name).trim();
+  const ms = (v: string) => (v.endsWith("ms") ? parseFloat(v) : parseFloat(v) * 1000); // "300ms" or "0.3s"
+
+  // ---- The tick: a 30ms burst of noise, band-passed so it reads as a soft click ----
+  let audio: AudioContext | null = null;
+  let noise: AudioBuffer | null = null;
+  function tick() {
+    try {
+      audio ??= new AudioContext(); // made inside a click, so the browser allows it
+      if (audio.state === "suspended") void audio.resume();
+      if (!noise) {
+        const len = Math.floor(audio.sampleRate * 0.03);
+        noise = audio.createBuffer(1, len, audio.sampleRate);
+        const d = noise.getChannelData(0);
+        for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 4);
+      }
+      const src = audio.createBufferSource();
+      src.buffer = noise;
+      const band = audio.createBiquadFilter();
+      band.type = "bandpass";
+      band.frequency.value = 3200;
+      band.Q.value = 1.2;
+      const gain = audio.createGain();
+      gain.gain.value = VOLUME;
+      src.connect(band).connect(gain).connect(audio.destination);
+      src.start();
+    } catch {
+      // No Web Audio: the star still shows, silently.
+    }
+  }
+
+  // ---- The star ----
+  const stars: HTMLElement[] = [];
+  async function place(x: number, y: number) {
+    const star = document.createElement("span");
+    star.className = "click-star";
+    star.setAttribute("aria-hidden", "true");
+    star.style.left = `${x}px`;
+    star.style.top = `${y}px`;
+    document.body.append(star);
+    stars.push(star);
+    if (stars.length > MAX) stars.shift()!.remove();
+
+    const easing = css("--ease") || "ease-out";
+    try {
+      if (!still.matches) {
+        await star.animate(
+          [{ opacity: 0, transform: "scale(0.4)" }, { opacity: 1, transform: "scale(1)" }],
+          { duration: ms(css("--dur-ui")) || 300, easing, fill: "forwards" },
+        ).finished;
+      }
+      await star.animate([{ opacity: 1 }, { opacity: 0 }], {
+        duration: ms(css("--dur-click-star")) || 1600,
+        easing,
+        fill: "forwards",
+      }).finished;
+    } catch {
+      // Cancelled (the star was removed early).
+    }
+    star.remove();
+    const i = stars.indexOf(star);
+    if (i >= 0) stars.splice(i, 1);
+  }
+
+  document.addEventListener("click", (e) => {
+    if (e.detail === 0) return; // a click made with the keyboard
+    if ((e.target as Element).closest?.(IGNORE)) return;
+    if (String(getSelection() ?? "").length > 0) return; // the end of selecting text
+    tick();
+    void place(e.clientX, e.clientY);
+  });
+</script>

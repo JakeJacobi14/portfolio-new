@@ -104,12 +104,22 @@ Dark only. No light mode for now.
   after hours strip's card swap (§8, ADR 0018).
 - Durations: `150ms` micro (hover, focus), `300ms` UI. The after hours star fields come
   back slowly after a hover: the photo lingers `2s` (`--dur-linger`), then the stars fade
-  in over `1.2s` (`--dur-fade-back`). The hero builds in about 2.5s;
+  in over `1.2s` (`--dur-fade-back`). A click star (below) fades out over `1.6s`
+  (`--dur-click-star`). The hero builds in about 2.5s;
   measured 2.9s on a 1440×900 desktop (the constellation is the last to finish) and 2.7s on
   a phone. Each later section starts the moment it enters the screen and is done within
   about 0.8s (measured 0.23 to 0.8s). Hero cursor moves take 0.3s to 0.7s depending on
   distance; in later sections 0.1s to 0.2s.
 - Easing: one curve everywhere, `cubic-bezier(0.2, 0, 0, 1)` (`--ease`)
+- **Click star** (every page, added 2026-11-08): a click on the page (not on a link,
+  button or form field, and not one that ends a text selection) leaves a star where you
+  clicked, like a bright constellation star: a 5px core in `--star-warm` with its soft
+  halo (3.2× the core, peaking at 28%). It pops in (opacity 0 → 1, scale 0.4 → 1,
+  `--dur-ui`), then fades out over `--dur-click-star` (1.6s). At most 12 at once. Reduced
+  motion: the same fade, no pop. Never interactive, hidden from screen readers.
+- **Sound:** the site is silent except for the click star's click: one very quiet, short
+  tick made in the browser (Web Audio, no files). No sound for the build-in, the agents or
+  the sky.
 - Build-in: unlabeled cursors (custom SVG, `--accent`) make everything on the page: five
   for the hero, plus a crew for each later section as it appears (ADR 0019).
   Four kinds of action:
@@ -294,7 +304,8 @@ Goal: clean, and not obviously vibe-coded. Many of these come from a list of com
   Exceptions: the soft halo on the brightest constellation stars (§8), a fade of the
   star's own color, and the radial mask that fades the sky's edge. (Added 2026-11-07,
   ADR 0009, ADR 0012.) The after hours strip's edge fades, a mask that fades the strip
-  into the background (§8, added 2026-11-08).
+  into the background (§8, added 2026-11-08). The click star's halo, the same fade as a
+  bright star's (§7, added 2026-11-08).
 - No pure white `#fff` or pure black `#000` backgrounds. Use tinted neutrals.
 
 **Surfaces**
