@@ -1,0 +1,621 @@
+---
+// 02 / after hours (DESIGN.md §8, ADR 0018): a strip of photos, each drawn as a field of
+// tiny points of light until you hover it. Images go through Astro's image pipeline; the
+// re-encode drops EXIF and GPS, and the originals are never published.
+import { getImage } from "astro:assets";
+import { getPhotos } from "../lib/after-hours";
+
+const { photos, count } = await getPhotos();
+
+/** A repeating pattern of five slots: size and vertical nudge, so the strip feels hand-placed. */
+const SLOTS = [
+  { size: "m", dy: 12 },
+  { size: "s", dy: -12 },
+  { size: "l", dy: 0 },
+  { size: "s", dy: 24 },
+  { size: "m", dy: -24 },
+];
+
+const cards = await Promise.all(
+  photos.map(async (p) => {
+    const [thumb, card, full] = await Promise.all([
+      getImage({ src: p.image, width: 128, format: "png" }), // sampled for the star field
+      getImage({ src: p.image, width: 576, format: "webp" }),
+      getImage({ src: p.image, width: 1600, format: "webp" }),
+    ]);
+    return { label: p.label, alt: p.alt, order: p.order, thumb: thumb.src, card: card.src, full: full.src };
+  }),
+);
+---
+<section id="after-hours" class="hours" aria-labelledby="after-title" data-hours>
+  <div class="head" data-hours-head>
+    <h2 id="after-title" class="label mono" data-type>02 / after hours</h2>
+    <a class="count mono" href="/after-hours" data-count data-type>{count}</a>
+  </div>
+  <ol class="strip" data-strip tabindex="0" aria-label="after hours photos, scroll horizontally">
+    {cards.map((c, i) => {
+      const slot = SLOTS[i % SLOTS.length];
+      return (
+        <li
+          class="card"
+          data-card
+          data-frame
+          style={`--w: var(--card-${slot.size}); --dy: ${slot.dy}px`}
+          data-thumb={c.thumb}
+          data-full={c.full}
+          data-label={c.label}
+          data-alt={c.alt}
+          data-seed={c.order}
+        >
+          <button type="button" class="open" data-open aria-label={`${c.label}. ${c.alt} Open the photo.`}>
+            <img src={c.card} alt="" width="576" height="720" loading="lazy" decoding="async" draggable="false" />
+            <canvas aria-hidden="true"></canvas>
+          </button>
+          <p class="cap mono" aria-hidden="true">{c.label}</p>
+        </li>
+      );
+    })}
+  </ol>
+  <dialog class="box" data-lightbox aria-labelledby="lb-cap">
+    <img data-lb-img alt="" />
+    <div class="box-bar mono">
+      <p id="lb-cap" data-lb-cap></p>
+      <div class="box-nav">
+        <button type="button" class="arrow" data-lb-prev aria-label="previous photo">←</button>
+        <span class="pos" data-lb-pos></span>
+        <button type="button" class="arrow" data-lb-next aria-label="next photo">→</button>
+        <form method="dialog"><button class="close">close</button></form>
+      </div>
+    </div>
+  </dialog>
+</section>
+
+<style>
+  .hours {
+    position: relative;
+    max-width: var(--page-max);
+    margin: 0 auto;
+    padding: var(--space-9) var(--gutter);
+  }
+  /* On desktop the section fills at least the screen, its contents centered in it. */
+  @media (min-width: 640px) {
+    .hours {
+      min-height: 100svh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+  }
+  .head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--space-2) var(--space-4);
+    margin-bottom: var(--space-5);
+  }
+  .label, .count { color: var(--muted); font-weight: 400; }
+
+  /* The edge fades: on a side only while there's more to scroll that way (ADR 0018). */
+  @property --fade { syntax: "<length>"; inherits: true; initial-value: 0px; }
+  @property --fade-l { syntax: "<length>"; inherits: false; initial-value: 0px; }
+  @property --fade-r { syntax: "<length>"; inherits: false; initial-value: 0px; }
+
+  /* Five cards fit the page on desktop; the rest scroll sideways. */
+  .strip {
+    --k: 1;
+    --fade: calc(var(--gutter) + var(--space-3));
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 var(--fade-l), #000 calc(100% - var(--fade-r)), transparent);
+    mask-image: linear-gradient(to right, transparent, #000 var(--fade-l), #000 calc(100% - var(--fade-r)), transparent);
+    transition: --fade-l var(--dur-ui) var(--ease), --fade-r var(--dur-ui) var(--ease);
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-5);
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    margin-inline: calc(-1 * var(--gutter));
+    padding: var(--space-2) var(--gutter) var(--space-4);
+    scroll-padding-inline: var(--gutter);
+  }
+  .strip::-webkit-scrollbar { display: none; }
+  .strip.more-l { --fade-l: var(--fade); }
+  .strip.more-r { --fade-r: var(--fade); }
+  /* Scrolled by a script to show a focused card: no snapping until the next manual scroll. */
+  .strip.free { scroll-snap-type: none; }
+  .card {
+    flex: none;
+    width: calc(var(--w) * var(--k));
+    /* The nudge is a margin (0 to 48px), so transforms stay free for animation. */
+    margin-top: calc(var(--space-5) + var(--dy));
+    scroll-snap-align: start;
+  }
+  .strip:focus-visible { outline-offset: -2px; }
+  .strip.dragging { scroll-snap-type: none; cursor: grabbing; user-select: none; }
+  @media (hover: hover) and (pointer: fine) {
+    /* No snapping with a trackpad or mouse: mandatory snap cut momentum short (worst going
+       left). Drag and the arrow keys still land on a card; touch keeps its snap points. */
+    .strip { cursor: grab; scroll-snap-type: none; }
+  }
+  @media (max-width: 639px) {
+    .strip { --k: 0.6; } /* two to three cards on a phone */
+  }
+
+  .open {
+    position: relative;
+    display: block;
+    width: 100%;
+    aspect-ratio: 4 / 5;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius);
+    background: var(--bg);
+    cursor: zoom-in;
+  }
+  .open img, .open canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+  .open img { object-fit: cover; }
+  .open canvas { pointer-events: none; }
+  /* With the star field on, the photo waits for hover or focus. */
+  /* Arriving (hover, focus): the photo comes in quickly. Leaving: a script keeps `.linger` on
+     the card for --dur-linger, then the stars slowly come back over --dur-fade-back. (A CSS
+     transition-delay did this in Chrome but not in Safari, so the wait is in the script.) */
+  .has-field .open img { opacity: 0; transition: opacity var(--dur-fade-back) var(--ease); }
+  .has-field .open canvas { transition: opacity var(--dur-fade-back) var(--ease); }
+  .has-field .open:hover img, .has-field .open:focus-visible img, .has-field .open.linger img {
+    opacity: 1;
+    transition: opacity var(--dur-ui) var(--ease);
+  }
+  .has-field .open:hover canvas, .has-field .open:focus-visible canvas, .has-field .open.linger canvas {
+    opacity: 0;
+    transition: opacity var(--dur-ui) var(--ease);
+  }
+  /* Back from a lightbox opened by mouse or touch: focused, but showing stars until hovered. */
+  .has-field .open.calm:not(:hover) img { opacity: 0; transition: opacity var(--dur-fade-back) var(--ease); }
+  .has-field .open.calm:not(:hover) canvas { opacity: 1; transition: opacity var(--dur-fade-back) var(--ease); }
+
+  /* The lightbox's ← and → buttons. */
+  .arrow {
+    min-width: var(--space-6);
+    padding: var(--space-1) var(--space-2);
+    font: inherit;
+    color: var(--muted);
+    background: none;
+    border: 1px solid color-mix(in srgb, var(--muted) 35%, transparent);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: color var(--dur-micro) var(--ease);
+  }
+  .arrow:hover:not(:disabled) { color: var(--accent); }
+  .arrow:disabled { opacity: 0.4; cursor: default; }
+  .pos { font-variant-numeric: tabular-nums; }
+
+  .cap {
+    margin-top: var(--space-2);
+    font-size: var(--text-2xs);
+    letter-spacing: var(--tracking-label);
+    color: var(--muted);
+  }
+
+  .box {
+    width: min(100% - 2 * var(--gutter), 960px);
+    max-height: calc(100svh - 2 * var(--space-6));
+    padding: 0;
+    color: var(--fg);
+    background: var(--bg);
+    border: 1px solid color-mix(in srgb, var(--muted) 35%, transparent);
+    border-radius: var(--radius);
+  }
+  .box::backdrop { background: color-mix(in srgb, var(--bg) 92%, transparent); }
+  .box img {
+    display: block;
+    width: 100%;
+    max-height: calc(100svh - 2 * var(--space-6) - var(--space-8));
+    object-fit: contain;
+  }
+  .box-bar {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--space-2) var(--space-4);
+    padding: var(--space-3) var(--space-4);
+    color: var(--muted);
+  }
+  .box-nav { display: flex; align-items: center; gap: var(--space-3); }
+  .close {
+    padding: 0;
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: 0;
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.2em;
+    transition: color var(--dur-micro) var(--ease);
+  }
+  .close:hover { color: var(--accent); }
+
+  /* The agent that swaps cards (same cursor as the build-in). */
+  .hours :global(.ah-cursor) {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 2;
+    pointer-events: none;
+    overflow: visible;
+  }
+  .hours :global(.ah-cursor path) {
+    fill: var(--accent);
+    stroke: var(--bg);
+    stroke-width: 1;
+    stroke-linejoin: round;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .has-field .open img, .has-field .open canvas { transition: none; }
+    .strip { transition: none; }
+  }
+</style>
+
+<script>
+  const ADVANCE_EVERY = 6000, QUIET = 15000; // ms
+  const EASE = "cubic-bezier(0.2, 0, 0, 1)"; // --ease
+
+  const section = document.querySelector<HTMLElement>("[data-hours]");
+  const strip = section?.querySelector<HTMLElement>("[data-strip]");
+  const box = section?.querySelector<HTMLDialogElement>("[data-lightbox]");
+  const root = document.documentElement;
+  const still = matchMedia("(prefers-reduced-motion: reduce)");
+  const mouse = matchMedia("(hover: hover) and (pointer: fine)");
+  const pad = (n: number) => String(n).padStart(2, "0");
+
+  /** cubic-bezier as a function of progress (the same curve as --ease). */
+  const bezier = (x1: number, y1: number, x2: number, y2: number) => (x: number) => {
+    let lo = 0, hi = 1, t = x;
+    for (let i = 0; i < 20; i++) {
+      t = (lo + hi) / 2;
+      const bx = 3 * (1 - t) ** 2 * t * x1 + 3 * (1 - t) * t ** 2 * x2 + t ** 3;
+      if (bx < x) lo = t; else hi = t;
+    }
+    return 3 * (1 - t) ** 2 * t * y1 + 3 * (1 - t) * t ** 2 * y2 + t ** 3;
+  };
+  const ease = bezier(0.2, 0, 0, 1);
+  const rng = (seed: number) => () => {
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+
+  // ---- Star field: points of light sampled from a small copy of the photo ----
+  type Pt = { x: number; y: number; r: number; a: number; c: string };
+  const fields = new Map<HTMLElement, Pt[]>();
+  const css = getComputedStyle(root);
+  const COLORS = {
+    warm: css.getPropertyValue("--star-warm").trim(),
+    cool: css.getPropertyValue("--star-cool").trim(),
+    star: css.getPropertyValue("--star").trim(),
+  };
+
+  async function sample(card: HTMLElement): Promise<Pt[]> {
+    const cached = fields.get(card);
+    if (cached) return cached;
+    const img = new Image();
+    img.src = card.dataset.thumb!;
+    await img.decode();
+    const w = img.naturalWidth, h = img.naturalHeight;
+    const c = document.createElement("canvas");
+    c.width = w; c.height = h;
+    const ctx = c.getContext("2d", { willReadFrequently: true })!;
+    ctx.drawImage(img, 0, 0);
+    const px = ctx.getImageData(0, 0, w, h).data;
+    const rand = rng(Number(card.dataset.seed) * 7919);
+    // Brightness relative to the photo itself: half stretched to its own range, half its rank
+    // among its pixels. Dark night photos then still show their sky and small lights, not
+    // only their brightest spot.
+    const lum = new Float32Array(w * h);
+    for (let i = 0; i < w * h; i++) lum[i] = (0.2126 * px[i * 4] + 0.7152 * px[i * 4 + 1] + 0.0722 * px[i * 4 + 2]) / 255;
+    const sorted = Float32Array.from(lum).sort();
+    const lo = sorted[Math.floor(sorted.length * 0.02)], hi = Math.max(lo + 0.05, sorted[Math.floor(sorted.length * 0.995)]);
+    const rank = (v: number) => {
+      let a = 0, b = sorted.length;
+      while (a < b) { const m = (a + b) >> 1; if (sorted[m] < v) a = m + 1; else b = m; }
+      return a / sorted.length;
+    };
+    const pts: Pt[] = [];
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const i = (y * w + x) * 4;
+        const r = px[i], b = px[i + 2];
+        const v = lum[y * w + x];
+        const L = 0.5 * Math.min(1, Math.max(0, (v - lo) / (hi - lo))) + 0.5 * Math.pow(rank(v), 2);
+        if (rand() >= Math.pow(L, 1.6) * 0.75) continue;
+        const warmth = (r - b) / 255;
+        pts.push({
+          x: (x + rand()) / w, y: (y + rand()) / h,
+          r: 0.3 + L * 0.5, a: 0.12 + L * 0.88,
+          c: warmth > 0.08 ? COLORS.warm : warmth < -0.06 ? COLORS.cool : COLORS.star,
+        });
+      }
+    }
+    fields.set(card, pts);
+    return pts;
+  }
+
+  function draw(card: HTMLElement, pts: Pt[]) {
+    const canvas = card.querySelector("canvas")!;
+    const dpr = Math.min(2, devicePixelRatio || 1);
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    if (!w || !h) return;
+    if (canvas.width !== Math.round(w * dpr)) { canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr); }
+    const ctx = canvas.getContext("2d")!;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    for (const pt of pts) {
+      ctx.globalAlpha = pt.a;
+      ctx.fillStyle = pt.c;
+      ctx.beginPath();
+      ctx.arc(pt.x * w, pt.y * h, pt.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  if (section && strip && box) {
+    const cards = [...strip.querySelectorAll<HTMLElement>("[data-card]")];
+    const behavior = (): ScrollBehavior => (still.matches ? "auto" : "smooth");
+    const padL = () => parseFloat(getComputedStyle(strip).paddingLeft);
+
+    // Any manual use of the strip pauses the agent for a while (DESIGN.md §8).
+    let lastManual = -Infinity;
+    const manual = () => { lastManual = performance.now(); strip.classList.remove("free"); };
+
+    // ---- Edge fades: only on a side with more to scroll ----
+    const atStart = () => strip.scrollLeft <= 2;
+    const atEnd = () => strip.scrollLeft + strip.clientWidth >= strip.scrollWidth - 2;
+    const fades = () => {
+      strip.classList.toggle("more-l", !atStart());
+      strip.classList.toggle("more-r", !atEnd());
+    };
+    let raf = 0;
+    strip.addEventListener("scroll", () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; fades(); }); }, { passive: true });
+    addEventListener("resize", fades);
+    fades();
+
+    /** Index of the first card fully past the left edge (the strip's position, in cards). */
+    const firstInView = () => {
+      const left = strip.getBoundingClientRect().left + padL() - 2;
+      const i = cards.findIndex((c) => c.getBoundingClientRect().left >= left);
+      return i < 0 ? cards.length - 1 : i;
+    };
+    const goTo = (i: number, how = behavior()) => {
+      const card = cards[Math.max(0, Math.min(cards.length - 1, i))];
+      strip.scrollTo({ left: card.offsetLeft - padL(), behavior: how });
+    };
+
+    // ---- Manual scrolling: trackpad, touch and shift + wheel are native; drag and keys ----
+    // The wheel listener is passive and only notes the input: a blocking one makes the browser
+    // wait on the main thread for every wheel event, which made trackpad scrolling stutter.
+    // Browsers already turn shift + wheel sideways, and a plain wheel scrolls the page.
+    strip.addEventListener("wheel", (e) => { if (e.deltaX !== 0 || e.shiftKey) manual(); }, { passive: true });
+    strip.addEventListener("touchstart", manual, { passive: true });
+    // Where repeated key presses are headed, so a second press during a smooth scroll
+    // counts from the card the first one is going to.
+    let aim: number | null = null;
+    strip.addEventListener("scrollend", () => { aim = null; });
+    strip.addEventListener("keydown", (e) => {
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      e.preventDefault();
+      manual();
+      const dir = e.key === "ArrowRight" ? 1 : -1;
+      if (dir > 0 && aim === null && atEnd()) return;
+      aim = Math.max(0, Math.min(cards.length - 1, (aim ?? firstInView()) + dir));
+      goTo(aim);
+    });
+
+    let drag: { x: number; left: number; moved: boolean } | null = null;
+    let justDragged = false;
+    strip.addEventListener("pointerdown", (e) => {
+      if (e.pointerType !== "mouse" || e.button !== 0) return;
+      manual();
+      drag = { x: e.clientX, left: strip.scrollLeft, moved: false };
+    });
+    strip.addEventListener("pointermove", (e) => {
+      if (!drag) return;
+      const dx = e.clientX - drag.x;
+      if (!drag.moved && Math.abs(dx) < 5) return;
+      if (!drag.moved) { drag.moved = true; strip.classList.add("dragging"); strip.setPointerCapture(e.pointerId); }
+      strip.scrollLeft = drag.left - dx;
+    });
+    const endDrag = () => {
+      if (!drag) return;
+      const moved = drag.moved;
+      drag = null;
+      if (!moved) return;
+      strip.classList.remove("dragging");
+      // Land on the nearest card; the click that ends a drag doesn't open a photo.
+      const left = strip.getBoundingClientRect().left + padL();
+      let best = 0;
+      cards.forEach((c, i) => {
+        if (Math.abs(c.getBoundingClientRect().left - left) < Math.abs(cards[best].getBoundingClientRect().left - left)) best = i;
+      });
+      goTo(best);
+      justDragged = true;
+      setTimeout(() => { justDragged = false; }, 0);
+    };
+    strip.addEventListener("pointerup", endDrag);
+    strip.addEventListener("pointercancel", endDrag);
+    strip.addEventListener("click", (e) => { if (justDragged) { e.stopPropagation(); e.preventDefault(); } }, { capture: true });
+
+    // A focused card is brought fully into view, clear of the edge fades, so its focus
+    // outline is never cut off.
+    strip.addEventListener("focusin", (e) => {
+      const card = (e.target as Element).closest<HTMLElement>("[data-card]");
+      if (!card) return;
+      const s = strip.getBoundingClientRect(), r = card.getBoundingClientRect();
+      const fade = parseFloat(getComputedStyle(strip).getPropertyValue("--fade")) || 0;
+      const margin = fade + 4;
+      let dx = 0;
+      if (r.left < s.left + margin && !(atStart() && r.left >= s.left + padL() - 1)) dx = r.left - (s.left + margin);
+      else if (r.right > s.right - margin && !(atEnd() && r.right <= s.right - padL() + 1)) dx = r.right - (s.right - margin);
+      if (Math.abs(dx) < 1) return;
+      strip.classList.add("free");
+      strip.scrollBy({ left: dx, behavior: behavior() });
+    });
+
+    // ---- Lightbox: every photo in strip order, ← / → buttons and arrow keys ----
+    const lbImg = box.querySelector<HTMLImageElement>("[data-lb-img]")!;
+    const lbCap = box.querySelector<HTMLElement>("[data-lb-cap]")!;
+    const lbPos = box.querySelector<HTMLElement>("[data-lb-pos]")!;
+    let shown = 0;
+    const show = (i: number) => {
+      shown = (i + cards.length) % cards.length;
+      const card = cards[shown];
+      lbImg.src = card.dataset.full!;
+      lbImg.alt = card.dataset.alt!;
+      lbCap.textContent = card.dataset.label!;
+      lbPos.textContent = `${pad(shown + 1)} / ${pad(cards.length)}`;
+    };
+    // Opened with a mouse or finger (not a key)? Then the card that gets focus back on close
+    // returns to its star field instead of holding the photo until you click elsewhere.
+    let byPointer = false;
+    section.addEventListener("click", (e) => {
+      const btn = (e.target as Element).closest<HTMLElement>("[data-open]");
+      if (!btn) return;
+      manual();
+      byPointer = e.detail > 0;
+      show(cards.indexOf(btn.closest<HTMLElement>("[data-card]")!));
+      box.showModal();
+    });
+    box.querySelector("[data-lb-prev]")!.addEventListener("click", () => show(shown - 1));
+    box.querySelector("[data-lb-next]")!.addEventListener("click", () => show(shown + 1));
+    box.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowLeft") { e.preventDefault(); show(shown - 1); }
+      if (e.key === "ArrowRight") { e.preventDefault(); show(shown + 1); }
+    });
+    // A click on the backdrop (outside the dialog's box) closes it.
+    box.addEventListener("click", (e) => {
+      const r = box.getBoundingClientRect();
+      if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) box.close();
+    });
+    // Back to the photo you ended on: its card gets focus (and is brought into view).
+    box.addEventListener("close", () => {
+      manual();
+      const btn = cards[shown].querySelector<HTMLElement>("[data-open]");
+      if (!btn) return;
+      if (byPointer) {
+        btn.classList.add("calm");
+        const wake = () => btn.classList.remove("calm");
+        btn.addEventListener("blur", wake, { once: true });
+        btn.addEventListener("keydown", wake, { once: true });
+      }
+      btn.focus();
+    });
+
+    // ---- Star fields and the agent ----
+    if (!still.matches) {
+      strip.classList.add("has-field");
+      // A photo you've looked at stays for --dur-linger after the pointer or focus leaves,
+      // then its stars fade back (DESIGN.md §8).
+      const ms = (v: string) => (v.trim().endsWith("ms") ? parseFloat(v) : parseFloat(v) * 1000); // "2000ms" or "2s"
+      const LINGER = ms(getComputedStyle(root).getPropertyValue("--dur-linger")) || 2000;
+      for (const btn of strip.querySelectorAll<HTMLElement>("[data-open]")) {
+        let timer = 0;
+        const stay = () => {
+          clearTimeout(timer);
+          btn.classList.add("linger");
+          timer = window.setTimeout(() => btn.classList.remove("linger"), LINGER);
+        };
+        btn.addEventListener("pointerleave", (e) => { if (e.pointerType === "mouse") stay(); });
+        btn.addEventListener("blur", () => { if (!btn.classList.contains("calm")) stay(); });
+      }
+      const paint = async (card: HTMLElement) => draw(card, await sample(card));
+      // Fields are made once the page has loaded, and only for cards within about a strip's
+      // width of view (one small image each, so 50 photos don't all load up front); redrawn on resize.
+      const near = new IntersectionObserver((es) => {
+        for (const e of es) if (e.isIntersecting) { near.unobserve(e.target); paint(e.target as HTMLElement); }
+      }, { root: strip, rootMargin: "0px 100%" });
+      const paintAll = () => { for (const c of cards) near.observe(c); };
+      if (document.readyState === "complete") paintAll(); else addEventListener("load", paintAll, { once: true });
+      new ResizeObserver(() => { for (const c of cards) { const f = fields.get(c); if (f) draw(c, f); } }).observe(strip);
+
+      // The agent advances the strip by one card every 6s (back to the start after the
+      // last). Desktop with a mouse only; never on touch.
+      if (mouse.matches) {
+        let inView = false, busy = false;
+        new IntersectionObserver(([e]) => { inView = e.isIntersecting; }, { threshold: 0.5 }).observe(strip);
+        const building = () => root.classList.contains("is-building") || root.classList.contains("hero-building")
+          || (root.classList.contains("b-active") && !strip.hasAttribute("data-made"));
+        // Hover is read when it's needed: enter/leave events go missing while the lightbox is open.
+        const paused = () => strip.matches(":hover") || !inView || document.hidden || box.open || building() || still.matches
+          || drag !== null || section.contains(document.activeElement) || performance.now() - lastManual < QUIET;
+
+        const cursor = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        cursor.setAttribute("class", "ah-cursor");
+        cursor.setAttribute("viewBox", "0 0 14 20");
+        cursor.setAttribute("width", "14");
+        cursor.setAttribute("height", "20");
+        cursor.setAttribute("aria-hidden", "true");
+        cursor.innerHTML = '<path d="M1 1 L1 16 L5 12.5 L8 19 L10.5 18 L7.6 11.6 L12.5 11.6 Z" />';
+        cursor.style.opacity = "0";
+        section.append(cursor);
+        let cx = 0, cy = 0;
+        const local = (el: Element) => {
+          const r = el.getBoundingClientRect(), s = section.getBoundingClientRect();
+          return { x: r.left - s.left, y: r.top - s.top, w: r.width, h: r.height };
+        };
+        const moveTo = (x: number, y: number, duration: number) => {
+          const a = cursor.animate(
+            [{ transform: `translate(${cx}px, ${cy}px)` }, { transform: `translate(${x}px, ${y}px)` }],
+            { duration, easing: EASE, fill: "forwards" },
+          );
+          cx = x; cy = y;
+          return a.finished;
+        };
+        const fade = (from: number, to: number, duration: number) =>
+          cursor.animate([{ opacity: from }, { opacity: to }], { duration, easing: EASE, fill: "forwards" }).finished;
+        /** Scroll the strip to `to` over `ms`, the cursor dragging along, with snapping off. */
+        const pull = (to: number, ms: number) => new Promise<void>((resolve) => {
+          const from = strip.scrollLeft, x0 = cx, t0 = performance.now();
+          strip.classList.add("free");
+          const frame = (now: number) => {
+            // You took over (wheel, drag, touch, keys): let go at once instead of fighting
+            // your scroll, which made scrolling left (against the pull) stop and jitter.
+            if (lastManual > t0) { strip.classList.remove("free"); resolve(); return; }
+            const p = Math.min(1, (now - t0) / ms), e = ease(p);
+            strip.scrollLeft = from + (to - from) * e;
+            cx = x0 - (to - from) * e;
+            cursor.style.transform = `translate(${cx}px, ${cy}px)`;
+            if (p < 1) requestAnimationFrame(frame); else { strip.classList.remove("free"); resolve(); }
+          };
+          cursor.getAnimations().forEach((a) => a.cancel());
+          cursor.style.opacity = "1";
+          requestAnimationFrame(frame);
+        });
+
+        async function advance() {
+          busy = true;
+          const back = atEnd();
+          const target = back ? 0 : cards[Math.min(cards.length - 1, firstInView() + 1)].offsetLeft - padL();
+          // The agent takes hold of a card on the right of the strip and pulls it one card left
+          // (or, at the end, pushes the strip back to the start).
+          const grabCard = cards[Math.min(cards.length - 1, firstInView() + (back ? 0 : 3))];
+          const g = local(grabCard);
+          cx = g.x + g.w * 0.5 + 30; cy = g.y + g.h * 0.55 + 30;
+          await Promise.all([fade(0, 1, 200), moveTo(g.x + g.w * 0.5, g.y + g.h * 0.55, 350)]);
+          await pull(target, back ? 1100 : 650);
+          await Promise.all([fade(1, 0, 300), moveTo(cx + 24, cy + 40, 300)]);
+          busy = false;
+        }
+        setInterval(() => {
+          if (!busy && !paused()) advance().catch((e) => { busy = false; console.error(e); });
+        }, ADVANCE_EVERY);
+      }
+    }
+  }
+</script>

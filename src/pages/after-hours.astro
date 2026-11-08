@@ -1,0 +1,88 @@
+---
+// /after-hours (DESIGN.md §8): every after hours photo at once, as plain photos (no star
+// field), in strip order. Reached from the counter above the strip on the home page.
+import { getImage } from "astro:assets";
+import Base from "../layouts/Base.astro";
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+import { getPhotos } from "../lib/after-hours";
+
+const { photos, count } = await getPhotos();
+const tiles = await Promise.all(
+  photos.map(async (p) => {
+    const img = await getImage({ src: p.image, width: 560, format: "webp" });
+    return { label: p.label, alt: p.alt, src: img.src, w: img.attributes.width, h: img.attributes.height };
+  }),
+);
+---
+<Base title="After hours · Jake Jacobi" description={`Photos from outside work: ${count}.`}>
+  <Header />
+  <main id="main" class="page">
+    <a class="back mono" href="/#after-hours">← back to after hours</a>
+    <div class="head">
+      <h1>after hours</h1>
+      <p class="count mono">{count}</p>
+    </div>
+    <ol class="collage">
+      {tiles.map((t) => (
+        <li>
+          <figure>
+            <img src={t.src} alt={t.alt} width={t.w} height={t.h} loading="lazy" decoding="async" />
+            <figcaption class="mono">{t.label}</figcaption>
+          </figure>
+        </li>
+      ))}
+    </ol>
+  </main>
+  <Footer />
+</Base>
+
+<style>
+  .page {
+    max-width: var(--page-max);
+    margin: 0 auto;
+    padding: var(--space-9) var(--gutter) var(--space-8);
+  }
+  .back { display: inline-block; color: var(--muted); text-decoration-color: transparent; }
+  .back:hover, .back:focus-visible { text-decoration-color: currentColor; }
+  .head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--space-2) var(--space-4);
+    margin: var(--space-7) 0 var(--space-6);
+  }
+  h1 {
+    font-size: var(--text-2xl);
+    font-weight: 500;
+    line-height: var(--leading-display);
+    letter-spacing: -0.02em;
+  }
+  .count { color: var(--muted); }
+
+  /* A collage: columns of photos at their own shapes, read top to bottom per column. */
+  .collage {
+    columns: 4;
+    column-gap: var(--space-5);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  @media (max-width: 899px) { .collage { columns: 3; } }
+  @media (max-width: 479px) { .collage { columns: 2; } }
+  .collage li { break-inside: avoid; margin-bottom: var(--space-5); }
+  figure { margin: 0; }
+  img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: var(--radius);
+    background: color-mix(in srgb, var(--muted) 12%, transparent);
+  }
+  figcaption {
+    margin-top: var(--space-2);
+    font-size: var(--text-2xs);
+    color: var(--muted);
+  }
+</style>
