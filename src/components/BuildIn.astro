@@ -407,7 +407,7 @@ const agents = [0, 1, 2, 3, 4];
     for (const c of caretEls) c.style.opacity = "";
     overlay.hidden = true;
     skipBtn.hidden = true;
-    root.classList.remove("is-building", "b-active");
+    root.classList.remove("is-building", "b-active", "hero-building");
     try { sessionStorage.setItem("built", "1"); } catch {}
     current = null;
   }
@@ -437,6 +437,8 @@ const agents = [0, 1, 2, 3, 4];
     if (reduce.matches) return finish();
     const d = new Director();
     current = d;
+    // The sky's ambient details (ADR 0016) wait while the hero is being built.
+    root.classList.add("hero-building");
     clearTimeout((window as any).__buildFailsafe);
     // Positions depend on web fonts; don't wait longer than 600ms for them.
     await Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 600))]);
@@ -732,6 +734,7 @@ const agents = [0, 1, 2, 3, 4];
       await d.whenIdle();
       await Promise.all(d.trailing);
       d.check();
+      root.classList.remove("hero-building");
       try { sessionStorage.setItem("built", "1"); } catch {}
       addEventListener("scroll", onScroll, { passive: true });
       d.stopListening = () => removeEventListener("scroll", onScroll);

@@ -12,7 +12,13 @@
 </header>
 
 <style>
+  /* Sits on top of the full-screen hero (ADR 0015), so the hero is exactly one screen. */
   .header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1;
     max-width: var(--page-max);
     margin: 0 auto;
     padding: var(--space-5) var(--gutter);

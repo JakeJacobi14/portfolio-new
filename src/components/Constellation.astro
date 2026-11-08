@@ -102,7 +102,7 @@ const describe = (s: Star) => `${s.short}, ${day(s.date)}: ${s.subject}`;
   </div>
   <figcaption class="mono" data-frame>every star is a commit to this site. oldest at the center.</figcaption>
   <div class="visually-hidden">
-    <p>The 10 most recent commits:</p>
+    <p>{n > 10 ? `Commits ${n - 9} to ${n} of ${n}:` : `All ${n} commits:`}</p>
     <ol>
       {recent.map((s) => <li><a href={`${REPO}/commit/${s.hash}`} tabindex="-1">{describe(s)}</a></li>)}
     </ol>
@@ -110,9 +110,10 @@ const describe = (s: Star) => `${s.short}, ${day(s.date)}: ${s.subject}`;
 </figure>
 
 <style>
-  .constellation { margin: 0; }
+  /* The caption sits centered under the sky (ADR 0015). */
+  .constellation { margin: 0; display: flex; flex-direction: column; align-items: center; }
   /* The frame is the stars' 0..100 square; it has no visible edge (ADR 0012). */
-  .c-frame { position: relative; aspect-ratio: 1; }
+  .c-frame { position: relative; width: 100%; aspect-ratio: 1; }
   .c-layer { position: absolute; pointer-events: none; }
   .c-layer svg { display: block; width: 100%; height: 100%; overflow: visible; }
   .c-sky svg { pointer-events: auto; }
@@ -125,15 +126,21 @@ const describe = (s: Star) => `${s.short}, ${day(s.date)}: ${s.subject}`;
   :global(.is-building) [data-constellation] :is([data-c-node], [data-c-dust], [data-c-fig], .c-label) { opacity: 0; }
 
   /* Stars (DESIGN.md §8): filled points, near-white with a slight temperature shift. */
-  .c-star { opacity: var(--o); }
-  .c-core { fill: var(--star); }
+  /* --near (0..1, set by the script) lifts a star a little as the pointer comes close. */
+  .c-star { --lit: calc(var(--o) + (1 - var(--o)) * var(--near, 0) * 0.4); opacity: var(--lit); }
+  .c-core {
+    fill: var(--star);
+    transform-box: fill-box;
+    transform-origin: center;
+    transform: scale(calc(1 + var(--near, 0) * 0.2));
+  }
   .tone-warm .c-core { fill: var(--star-warm); }
   .tone-cool .c-core { fill: var(--star-cool); }
   .c-tw {
     animation: c-twinkle calc(var(--twinkle-min) + (var(--twinkle-max) - var(--twinkle-min)) * var(--tw-f))
       var(--ease) var(--tw-delay) infinite alternate;
   }
-  @keyframes c-twinkle { to { opacity: calc(var(--o) * 0.45); } }
+  @keyframes c-twinkle { to { opacity: calc(var(--lit) * 0.45); } }
 
   .c-dust path { fill: var(--star); }
   .c-dust-a { opacity: 0.1; }
@@ -201,7 +208,8 @@ const describe = (s: Star) => `${s.short}, ${day(s.date)}: ${s.subject}`;
   .c-tip[hidden] { display: none; }
   .c-tip-meta { color: var(--muted); }
 
-  figcaption { width: fit-content; margin-top: var(--space-3); color: var(--muted); }
+  /* One line wherever the sky is wide enough; otherwise two balanced lines. */
+  figcaption { width: fit-content; margin-top: var(--space-3); color: var(--muted); text-align: center; text-wrap: balance; }
 
   @media (prefers-reduced-motion: reduce) {
     .c-tw { animation: none; }
@@ -223,7 +231,8 @@ const describe = (s: Star) => `${s.short}, ${day(s.date)}: ${s.subject}`;
     const tip = fig.querySelector<HTMLElement>("[data-c-tip]")!;
     const tipMeta = fig.querySelector<HTMLElement>("[data-c-tip-meta]")!;
     const tipSubject = fig.querySelector<HTMLElement>("[data-c-tip-subject]")!;
-    const building = () => document.documentElement.classList.contains("b-active");
+    // Only while the hero (and so the sky) is being built; later sections don't matter here.
+    const building = () => document.documentElement.classList.contains("hero-building") || document.documentElement.classList.contains("is-building");
     let active = -1;
 
     /** Hovering a milestone: light up its figure, dim the rest of the sky. One generated
@@ -326,5 +335,52 @@ const describe = (s: Star) => `${s.short}, ${day(s.date)}: ${s.subject}`;
       links[next].focus();
     });
     addEventListener("resize", () => { if (active >= 0) place(active); });
+
+    /* Stars notice the pointer (ADR 0016): within NEAR px they brighten and grow slightly,
+       with a soft falloff by distance, eased in and out. Mouse only, never while the hero is
+       being built, off for reduced motion. Only stars whose value changes are touched. */
+    const NEAR = 120, TAU = 140; // px, ms
+    const fine = matchMedia("(hover: hover) and (pointer: fine)");
+    const still = matchMedia("(prefers-reduced-motion: reduce)");
+    const root = document.documentElement;
+    const starEls = links.map((a) => a.querySelector<SVGGElement>(".c-star")!);
+    const near = new Float32Array(links.length);
+    const shown = new Float32Array(links.length); // last value written to the page
+    let px = -1e5, py = -1e5, raf = 0, last = 0;
+    const step = (now: number) => {
+      raf = 0;
+      const k = 1 - Math.exp(-Math.min(64, now - last) / TAU);
+      last = now;
+      const off = still.matches || building();
+      const r = svg.getBoundingClientRect();
+      const scale = r.width / BOX;
+      const far = off || px < r.left - NEAR || px > r.right + NEAR || py < r.top - NEAR || py > r.bottom + NEAR;
+      let moving = false;
+      for (let i = 0; i < pts.length; i++) {
+        let t = 0;
+        if (!far) {
+          const d = Math.hypot(r.left + (pts[i].x + PAD) * scale - px, r.top + (pts[i].y + PAD) * scale - py);
+          if (d < NEAR) { const f = 1 - d / NEAR; t = f * f * (3 - 2 * f); }
+        }
+        if (t === 0 && near[i] === 0) continue;
+        let v = near[i] + (t - near[i]) * k;
+        if (Math.abs(t - v) < 0.004) v = t; else moving = true;
+        near[i] = v;
+        if (Math.abs(v - shown[i]) > 0.002 || (v === t && v !== shown[i])) {
+          shown[i] = v;
+          if (v === 0) starEls[i].style.removeProperty("--near");
+          else starEls[i].style.setProperty("--near", v.toFixed(3));
+        }
+      }
+      if (moving) raf = requestAnimationFrame(step);
+    };
+    const kick = () => { if (!raf) { last = performance.now(); raf = requestAnimationFrame(step); } };
+    addEventListener("pointermove", (e) => {
+      if (e.pointerType !== "mouse" || !fine.matches) return;
+      px = e.clientX; py = e.clientY;
+      kick();
+    }, { passive: true });
+    document.addEventListener("pointerleave", () => { px = py = -1e5; kick(); });
+    addEventListener("scroll", () => { if (px > -1e5) kick(); }, { passive: true });
   }
 </script>

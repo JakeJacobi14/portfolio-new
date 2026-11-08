@@ -1,25 +1,32 @@
 ---
 import Constellation from "./Constellation.astro";
+import ShootingStar from "./ShootingStar.astro";
 ---
 <section class="intro" aria-labelledby="intro-title">
   <div class="text">
     <p class="greeting mono" data-frame>
       <span class="mn" lang="mn" tabindex="0" aria-describedby="greeting-tip">сайн уу</span>, I'm
-      <span class="tip" id="greeting-tip" role="tooltip" aria-hidden="true">sain uu · hi, in Mongolian</span>
+      <span class="tip" id="greeting-tip" role="tooltip" aria-hidden="true">hello, in Mongolian</span>
     </p>
     <h1 id="intro-title" data-frame data-type>Jake Jacobi</h1>
     <p class="tagline mono" data-frame>software engineer · building software that sees, thinks &amp; moves</p>
   </div>
   <Constellation />
+  <ShootingStar />
 </section>
 
 <style>
+  /* The hero fills exactly one screen (ADR 0015); the header sits on top of it. The name
+     block and the sky are centered vertically in it. */
   .intro {
+    position: relative;
+    min-height: 100svh;
     max-width: var(--page-max);
     margin: 0 auto;
-    padding: var(--space-9) var(--gutter);
+    padding: var(--space-9) var(--gutter) var(--space-8);
     display: grid;
-    gap: var(--space-8);
+    align-content: center;
+    gap: var(--space-7);
   }
   /* One big element (the name); everything else is small (DESIGN.md §5, ADR 0013).
      Each line is only as wide as its text, so the build-in frames fit it tightly. */
@@ -62,10 +69,21 @@ import Constellation from "./Constellation.astro";
     color: var(--muted);
   }
   @media (min-width: 960px) {
+    /* The text column is as wide as the name; the sky takes the rest, plus up to 64px of
+       the page's right margin when there is one. The gap keeps the sky's faded edge (15%
+       past the stars) clear of the name. */
     .intro {
-      grid-template-columns: 3fr 2fr;
+      grid-template-columns: max-content minmax(0, 1fr);
+      column-gap: var(--space-9);
       align-items: center;
-      padding-top: var(--space-8);
+      padding-bottom: var(--space-9);
+    }
+    .intro :global(.constellation) {
+      margin-right: calc(-1 * clamp(0px, (100vw - var(--page-max)) / 2, var(--space-8)));
+    }
+    /* Never taller than the screen leaves room for. */
+    .intro :global(.c-frame) {
+      width: min(100%, 100svh - 2 * var(--space-9) - var(--space-7));
     }
   }
   @media (prefers-reduced-motion: reduce) {

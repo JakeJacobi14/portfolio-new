@@ -24,6 +24,13 @@ const { title, description = "Jake Jacobi, computer science student at Purdue." 
          Once per session on the live site; on every load in dev, so it's easy to review. -->
     <script is:inline define:vars={{ everyLoad: import.meta.env.DEV }}>
       (() => {
+        // A reload always starts at the top; links to a section (/#work) still go there.
+        if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+        if (!location.hash) scrollTo(0, 0);
+        else addEventListener("DOMContentLoaded", () => {
+          // With manual restoration, a reload no longer goes back to the section by itself.
+          document.getElementById(decodeURIComponent(location.hash.slice(1)))?.scrollIntoView();
+        });
         const d = document.documentElement;
         let seen = false;
         try { seen = !everyLoad && sessionStorage.getItem("built") === "1"; } catch {}

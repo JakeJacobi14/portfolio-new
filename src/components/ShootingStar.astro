@@ -1,0 +1,82 @@
+---
+// One faint shooting star every 15 to 20s, across the sky or near the bottom of the hero
+// (DESIGN.md §8, ADR 0016). Only while the hero is in view, never during the build-in,
+// none for reduced motion. Decorative only.
+---
+<div class="shooting" data-shooting aria-hidden="true"></div>
+
+<style>
+  .shooting {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  /* A 1px streak that draws from its tail to its head and is erased the same way. */
+  .shooting :global(.streak) {
+    position: absolute;
+    height: 1px;
+    background: var(--star);
+    transform-origin: 0 50%;
+    opacity: 0;
+  }
+</style>
+
+<script>
+  const EVERY = [15000, 20000]; // ms
+  const DUR = 600; // ms
+  const EASE = "cubic-bezier(0.2, 0, 0, 1)"; // --ease
+  const box = document.querySelector<HTMLElement>("[data-shooting]");
+  const hero = box?.parentElement;
+  const still = matchMedia("(prefers-reduced-motion: reduce)");
+  const root = document.documentElement;
+  let inView = false;
+
+  const rand = (a: number, b: number) => a + Math.random() * (b - a);
+
+  function streak() {
+    if (!box || !hero) return;
+    const h = hero.getBoundingClientRect();
+    const sky = hero.querySelector(".c-sky svg")?.getBoundingClientRect();
+    const len = rand(140, 220);
+    const angle = rand(12, 35) * (Math.PI / 180);
+    const ltr = Math.random() < 0.5;
+    // Across the sky, or in a band near the bottom of the hero.
+    let x: number, y: number;
+    if (sky && sky.width > 0 && Math.random() < 0.6) {
+      x = rand(sky.left, sky.right - len * 0.6) - h.left;
+      y = rand(sky.top, sky.top + sky.height * 0.6) - h.top;
+    } else {
+      x = rand(0, h.width - len);
+      y = rand(h.height - 160, h.height - 80);
+    }
+    const s = document.createElement("span");
+    s.className = "streak";
+    s.style.left = `${x}px`;
+    s.style.top = `${y}px`;
+    s.style.width = `${len}px`;
+    s.style.transform = `rotate(${ltr ? angle : Math.PI - angle}rad)`;
+    box.append(s);
+    s.animate(
+      [
+        { clipPath: "inset(0 100% 0 0)", opacity: 0 },
+        { clipPath: "inset(0 40% 0 10%)", opacity: 0.35, offset: 0.45 },
+        { clipPath: "inset(0 0 0 100%)", opacity: 0 },
+      ],
+      { duration: DUR, easing: EASE },
+    ).finished.finally(() => s.remove());
+  }
+
+  function schedule() {
+    setTimeout(() => {
+      const building = root.classList.contains("hero-building") || root.classList.contains("is-building");
+      if (inView && !document.hidden && !still.matches && !building) streak();
+      schedule();
+    }, rand(EVERY[0], EVERY[1]));
+  }
+
+  if (box && hero) {
+    new IntersectionObserver(([e]) => { inView = e.isIntersecting; }, { threshold: 0.4 }).observe(hero);
+    schedule();
+  }
+</script>
