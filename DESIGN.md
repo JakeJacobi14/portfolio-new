@@ -108,7 +108,7 @@ Dark only. No light mode for now.
   (`--dur-click-star`). The hero builds in about 2.5s;
   measured 2.9s on a 1440×900 desktop (the constellation is the last to finish) and 2.7s on
   a phone. Each later section starts the moment it enters the screen and is done within
-  about 0.8s (measured 0.23 to 0.8s). Hero cursor moves take 0.3s to 0.7s depending on
+  about 0.8s (measured 0.23 to 0.8s); a work row takes about 1s. Hero cursor moves take 0.3s to 0.7s depending on
   distance; in later sections 0.1s to 0.2s.
 - Easing: one curve everywhere, `cubic-bezier(0.2, 0, 0, 1)` (`--ease`)
 - **Click star** (every page, added 2026-11-08): a click on the page (not on a link,
@@ -144,8 +144,10 @@ Dark only. No light mode for now.
   constellation (it appears on the sky's center and starts the sweep at once).
   Later sections (ADR 0019) each get their own crew once at least 30% of the section (or of
   the screen, for a tall one) has been in view for 120ms with the page nearly still
-  (scrolling slower than 1200px/s), and never wait for another section: each work row (hairline right to left, title typed,
-  summary and year fade in), the work label, the after hours label and counter, the strip
+  (scrolling slower than 1200px/s), and never wait for another section: each work row (a
+  crew of two, about 1s: one agent draws the hairline right to left, frames the title and
+  types it in while the summary fades in; the other frames the year, then nudges the "→"
+  in from 4px left; rows that arrive together cascade 90ms apart), the work label, the after hours label and counter, the strip
   (a frame per card in view, one agent each, 30ms apart; frames grow in 0.35s and the card
   rises in 0.25s), say hola (label and address typed, copy button framed, links fade in)
   and the footer. A section counts as done when its content has landed; its frames fade

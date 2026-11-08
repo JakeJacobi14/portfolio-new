@@ -129,6 +129,13 @@
     const r = el.getBoundingClientRect();
     return { x: r.left + scrollX, y: r.top + scrollY, w: r.width, h: r.height };
   };
+  /** Where an element's text actually is, for a block that's wider than its words. */
+  const textBox = (el: Element): Box => {
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    const r = range.getBoundingClientRect();
+    return r.width ? { x: r.left + scrollX, y: r.top + scrollY, w: r.width, h: r.height } : box(el);
+  };
 
   /** cubic-bezier(x1, y1, x2, y2) as a function of progress, for motion driven frame by frame. */
   const bezier = (x1: number, y1: number, x2: number, y2: number) => (x: number) => {
@@ -327,10 +334,11 @@
 
     /** Lay out an element like a design tool (ADR 0014): drag out a frame from its top-left
         corner to full size, with a size label that fades, then set the content in (typed
-        behind a caret, or a short fade and rise). The frame fades once the content lands. */
-    async frame(el: HTMLElement | null, set: "type" | "rise" | "outline", t = { grow: 0.45, rise: 0.3 }) {
+        behind a caret, or a short fade and rise). The frame fades once the content lands.
+        `fit` frames the text rather than the element's box; `ms` is the typing pace. */
+    async frame(el: HTMLElement | null, set: "type" | "rise" | "outline", t = { grow: 0.45, rise: 0.3 }, o: { fit?: boolean; ms?: number } = {}) {
       if (!el) return;
-      const b = box(el);
+      const b = o.fit ? textBox(el) : box(el);
       if (b.w === 0) { el.style.opacity = ""; return; } // not displayed: nothing to lay out
       const x = b.x - FRAME_PAD, y = b.y - FRAME_PAD;
       const w = b.w + 2 * FRAME_PAD, h = b.h + 2 * FRAME_PAD;
@@ -357,7 +365,7 @@
       if (set !== "outline") {
         if (set === "rise") this.c.d.restore(el); // a typed element rises in whole
         el.style.opacity = "1";
-        if (set === "type") await this.type(el, MS_PER_CHAR.display, false);
+        if (set === "type") await this.type(el, o.ms ?? MS_PER_CHAR.display, false);
         else await this.c.play(el, { opacity: [0, 1], transform: ["translateY(4px)", "none"] }, { duration: t.rise });
       }
       el.style.opacity = "";
@@ -421,11 +429,17 @@
   function settle(d: Director, roots: Element[]) {
     for (const el of [...d.typed.keys()]) if (roots.some((r) => r.contains(el))) d.restore(el);
     for (const el of within(roots, "[data-frame]")) { el.style.opacity = ""; el.style.transform = ""; }
-    for (const el of within(roots, "[data-row]")) el.dataset.built = "";
+    for (const el of within(roots, "[data-row]")) { el.dataset.built = ""; clearNudge(el); }
     for (const el of within(roots, SKY)) { el.style.opacity = ""; el.style.transform = ""; }
     for (const l of within(roots, "[data-c-line]")) { l.style.strokeDasharray = ""; l.style.strokeDashoffset = ""; }
     for (const fx of within(roots, "[data-c-fx]")) fx.replaceChildren();
   }
+
+  /** A work row's arrow is nudged in with inline styles; hand it back to the stylesheet. */
+  const clearNudge = (row: Element) => {
+    const arrow = q(".arrow", row);
+    if (arrow) { arrow.style.opacity = ""; arrow.style.transform = ""; }
+  };
 
   let current: Director | null = null;
 
@@ -740,22 +754,43 @@
       const workLabel = q("#work-title");
       unit(workLabel, [workLabel], (c) => quickType(c, workLabel));
       const rows = qa("[data-row]");
+      let rowCue = -Infinity; // rows that arrive together build in a cascade, 90ms apart
       for (const row of rows) {
-        // Hairline right to left, so the cursor ends where the title starts; the title is
-        // typed while the summary and year fade in. About 0.7s.
+        // A crew of two, about 1s. One agent draws the hairline right to left, so it ends
+        // where the title starts, drags a frame around the title and types it in; the
+        // summary fades in under it. The other frames the year, then nudges the arrow in.
         unit(row, [row], async (c) => {
+          const now = performance.now();
+          const delay = Math.max(0, rowCue + 90 - now);
+          rowCue = now + delay;
+          if (delay) await c.wait(delay);
           const b = box(row);
-          const a = c.spawn(b.x + b.w, b.y);
+          const title = q("h3", row), meta = q(".meta", row), arrow = q(".arrow", row);
           if (row === rows[rows.length - 1]) {
             const bottom = rule(c, b.x, b.x + b.w, b.y + b.h - 1);
             c.later(c.play(bottom, { transform: ["scaleX(0)", "scaleX(1)"] }, { duration: 0.25 }));
           }
-          await a.draw(b.x + b.w, b.x, b.y, 0.25);
           await Promise.all([
-            a.type(q("h3", row), MS_PER_CHAR.quick),
-            c.reveal(q(".blurb", row), 60),
-            c.reveal(q(".meta", row), 120),
+            (async () => {
+              const a = c.spawn(b.x + b.w, b.y);
+              await a.draw(b.x + b.w, b.x, b.y, 0.25);
+              c.later(c.reveal(q(".blurb", row), 350));
+              await a.frame(title, "type", QUICK, { fit: true, ms: MS_PER_CHAR.quick });
+            })(),
+            (async () => {
+              if (!meta || box(meta).w === 0) return;
+              const m = box(meta);
+              await c.wait(120);
+              const a = c.spawn(m.x + m.w + 24, b.y + 8);
+              await a.frame(meta, "rise", QUICK);
+              if (!arrow || box(arrow).w === 0) return;
+              const r = box(arrow);
+              await a.move(r.x + r.w / 2, r.y + r.h);
+              arrow.style.opacity = "1";
+              await c.play(arrow, { opacity: [0, 1], transform: ["translateX(-4px)", "none"] }, { duration: QUICK.rise });
+            })(),
           ]);
+          clearNudge(row);
           row.dataset.built = "";
         });
       }
