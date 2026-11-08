@@ -627,5 +627,16 @@
     "insertions": 121,
     "deletions": 2,
     "tags": []
+  },
+  {
+    "hash": "a95dbfb8eb1b6fe2f078b894a0f28b04bb9b0e4d",
+    "short": "a95dbfb",
+    "date": "2026-11-08T13:42:04-05:00",
+    "subject": "fix: click star stays where you clicked as you scroll, with a soft chime instead of a tick",
+    "type": "fix",
+    "files": 2,
+    "insertions": 32,
+    "deletions": 26,
+    "tags": []
   }
 ]
