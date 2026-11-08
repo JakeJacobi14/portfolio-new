@@ -108,34 +108,46 @@ Dark only. No light mode for now.
 
 ## 8. Pages & sections
 - Home: intro (with a central element), selected work, about, contact
-- Central element: the **commit constellation**, drawn as a night sky (ADR 0008, ADR 0009),
-  in the existing framed box. Every star is a real commit to this repo (`npm run commits` →
+- Central element: the **commit constellation**, drawn as a night sky (ADR 0008, ADR 0009,
+  ADR 0011, ADR 0012), in the intro's right column with no frame. Every star is a real commit to this repo (`npm run commits` →
   `src/data/commits.json`). Feel: Eleanor Lutz's constellation maps. Tiny points, a few
   bright stars, faint thin lines, lots of empty space.
   - **Layout:** phyllotaxis base (commit *i*, oldest first, at radius `c·√i`, angle
     `i·137.5°`), pushed off it by up to half the spacing in a direction seeded from the hash,
     so it reads as a sky but still grows outward. Same data, same image.
+  - **No edge:** no frame or border. The sky's layer reaches 15% past the stars on every
+    side, and a radial mask fades it from full at 40% of its radius to nothing at 92%, so
+    the outer stars dissolve into the page. Nothing in it sits under the name or text.
   - **Stars:** filled points only, no rings. Size follows lines changed on a power curve, so
     most are tiny (1 to 2px across), some medium (2 to 3px), and only big commits and
     milestones are bright (4 to 6px core). Opacity 0.35 to 1, seeded from the hash and
     raised for bigger stars. Color by type: `--star-warm`, `--star-cool` or `--star` (§4).
-  - **Halo:** bright stars only, a soft radial fade of their own color, about 4.5× the core.
+  - **Halo:** bright stars only, a soft radial fade of their own color, about 3.2× the core,
+    peaking at 28% opacity (kept small so the milestone figures stay the focal point).
   - **Stardust:** around each star, 0 to 6 specks (one per changed file after the first),
     1px, at 10 to 20% opacity. Decorative, never interactive, and only from real data.
   - **Constellation lines:** only milestones (git tags) form figures. Each milestone joins
-    the 4 brightest commits since the previous milestone with the shortest set of lines
-    (a minimum spanning tree). Lines are `--muted`, about 0.7px, at 25% opacity. The tag
-    name sits beside the milestone in `--text-2xs`, `--tracking-label`, `--muted`.
+    the 4 brightest of its 6 nearest commits since the previous milestone, with the
+    shortest set of lines (a minimum spanning tree). Lines are `--muted`, about 0.7px, at
+    25% opacity.
+  - **Milestone labels:** the tag name in `--text-2xs`, `--tracking-label`, `--muted`,
+    never over a star, a line or another label: eight directions are tried around the
+    milestone (then farther out), the first clear one wins, nearer the center if several
+    are clear. Labels sit outside the edge fade so they're always readable.
   - **Hover / focus** a star: an `--accent` ring and a tooltip (short hash, date, subject;
     mono, `--text-xs`, `--bg` with a `--muted` 35% hairline border). Click opens the commit
     on GitHub in a new tab. Touch: first tap shows the tooltip, second tap opens. Arrow keys
     step through commits in order. Hit areas reach well past the tiny stars.
   - **Hover a milestone:** its figure brightens (lines to 60%) and the rest of the sky dims
     to 45% (`--dur-ui`).
-  - **Build-in:** after the box is dragged in, an agent places the stars oldest to newest
-    while a path draws between them, in about 2s whatever the count. The path fades, the
-    stardust fades in, and the constellation lines draw last. Reduced motion: the finished
-    sky, no twinkle.
+  - **Build-in** (ADR 0011): an agent sweeps out from the center on a smooth spiral (1.75
+    turns, eased with `--ease`, about 1.7s) that ends on the newest commit. Stars ripple in
+    as the sweep reaches their distance from the center, a little later the farther they
+    are from the cursor (up to about 0.4s). Each scales up quickly (0.3s); the bright ones
+    and any the cursor passes over get a faint ping ring that fades in 0.3s. A short trail
+    follows the cursor (at most 0.2s and about 30px). No lines between commits. Stardust
+    fades in ring by ring just behind the sweep, then the agent visits each milestone and
+    its figure draws (about 1.2s in all). Reduced motion: the finished sky, no twinkle.
   - **Accessible:** a group label describing the image, a link per star with its hash, date
     and subject, and a visually hidden list of the 10 most recent commits.
 - Project pages (case studies): problem → process → outcome → what I'd change
@@ -147,8 +159,9 @@ Goal: clean, and not obviously vibe-coded. Many of these come from a list of com
 
 **Color**
 - No gradients (harsh or soft blobs), rainbow coloring, neon colors, or purple-on-black.
-  One exception: the soft halo on the brightest constellation stars (§8), a fade of the
-  star's own color. (Added 2026-11-07, ADR 0009.)
+  Exceptions: the soft halo on the brightest constellation stars (§8), a fade of the
+  star's own color, and the radial mask that fades the sky's edge. (Added 2026-11-07,
+  ADR 0009, ADR 0012.)
 - No pure white `#fff` or pure black `#000` backgrounds. Use tinted neutrals.
 
 **Surfaces**
