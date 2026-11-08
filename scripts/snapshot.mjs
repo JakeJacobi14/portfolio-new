@@ -23,12 +23,12 @@ try {
       deviceScaleFactor: 2,
     });
     await page.goto(url, { waitUntil: "networkidle" });
-    // Let the first screen finish building, then skip the rest: later sections only build
-    // when scrolled to (ADR 0007), so the build never ends on its own in a still capture.
+    // Let the hero finish building, then skip the rest: later sections only build when
+    // scrolled to (ADR 0019), so the build never ends on its own in a still capture.
     await page
       .waitForFunction(() => {
-        const overlay = document.querySelector("[data-bi-overlay]");
-        return overlay?.hidden !== false || sessionStorage.getItem("built") === "1";
+        const c = document.documentElement.classList;
+        return !c.contains("is-building") && !c.contains("hero-building");
       }, null, { timeout: 30000 })
       .catch(() => console.warn("first screen did not finish in 30s; capturing anyway"));
     await page.keyboard.press("Escape");

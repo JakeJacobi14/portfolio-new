@@ -1,0 +1,35 @@
+---
+import Base from "../layouts/Base.astro";
+import Header from "../components/Header.astro";
+---
+<Base title="Not found · Jake Jacobi" description="This page doesn't exist.">
+  <Header />
+  <main id="main" class="nf">
+    <p class="label mono">404</p>
+    <h1>Nothing here.</h1>
+    <p class="home mono"><a href="/">← back home</a></p>
+  </main>
+</Base>
+
+<style>
+  .nf {
+    max-width: var(--page-max);
+    min-height: 100svh;
+    margin: 0 auto;
+    padding: var(--space-9) var(--gutter);
+    display: grid;
+    align-content: center;
+  }
+  .label { color: var(--muted); }
+  h1 {
+    margin-top: var(--space-3);
+    font-size: var(--text-2xl);
+    font-weight: 500;
+    line-height: var(--leading-display);
+    letter-spacing: -0.02em;
+  }
+  .home { margin-top: var(--space-5); color: var(--muted); }
+  @media (min-width: 640px) {
+    h1 { font-size: var(--text-3xl); }
+  }
+</style>

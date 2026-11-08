@@ -29,6 +29,8 @@
   --text-6xl: 95px;
   /* The name in the hero, the one big element (ADR 0013). */
   --text-display: clamp(var(--text-3xl), 7vw + 16px, var(--text-6xl));
+  /* The email address in §03 say hola (ADR 0017). */
+  --text-contact: clamp(var(--text-lg), 5vw + 8px, var(--text-3xl));
   --leading-body: 1.5;
   --leading-display: 1.1;
 
@@ -48,10 +50,16 @@
   --page-max: 1120px;
   --gutter: var(--space-4);
   --radius: 0;
+  /* After hours cards (ADR 0018), aspect 4:5. */
+  --card-s: 224px;
+  --card-m: 240px;
+  --card-l: 288px;
 
   /* Motion (DESIGN.md §7) */
   --dur-micro: 150ms;
   --dur-ui: 300ms;
+  --dur-linger: 2000ms; /* after hours: how long a hovered photo stays before the stars return */
+  --dur-fade-back: 1200ms; /* after hours: the stars fading back in */
   --dur-build: 1800ms;
   --ease: cubic-bezier(0.2, 0, 0, 1);
   --twinkle-min: 4s;

@@ -1,24 +1,16 @@
 ---
-// The signature moment (DESIGN.md §1, §7, ADR 0006, ADR 0007, ADR 0014): five agents make
-// the page. On load they lay out the hero like a design tool (a text frame per element, then
-// the text sets in) while one of them builds the constellation; later sections are built as
-// they scroll into view, by typing the text, drawing the lines and dragging the boxes.
-const agents = [0, 1, 2, 3, 4];
+// The signature moment (DESIGN.md §1, §7; ADR 0006, 0014, 0019, 0020). On the home page a
+// crew of five agents lays out the hero like a design tool while one of them builds the
+// constellation; on a project page, agents lay out its title and facts. Every later section
+// gets its own crew once it's settled into view, and finishes in under a second; sections
+// scrolled past without stopping appear finished. Agents are made by the script.
 ---
-<div class="bi-overlay" data-bi-overlay aria-hidden="true" hidden>
-  {agents.map(() => <span class="bi-caret" data-bi-caret></span>)}
-  {agents.map(() => (
-    <svg class="bi-cursor" data-bi-cursor viewBox="0 0 14 20" width="14" height="20" focusable="false">
-      <path d="M1 1 L1 16 L5 12.5 L8 19 L10.5 18 L7.6 11.6 L12.5 11.6 Z" />
-    </svg>
-  ))}
-</div>
+<div class="bi-overlay" data-bi-overlay aria-hidden="true" hidden></div>
 <button type="button" class="bi-skip mono" data-bi-skip hidden>Skip</button>
 
 <style is:global>
   /* Before the script runs: hide whatever the agents will make. */
   .is-building [data-type],
-  .is-building [data-drag],
   .is-building [data-frame] { opacity: 0; }
   /* While building: list hairlines are drawn by an agent instead. */
   .is-building [data-row],
@@ -108,22 +100,26 @@ const agents = [0, 1, 2, 3, 4];
   .bi-skip[hidden] { display: none; }
 </style>
 
+
 <script>
   import { animate } from "motion/mini";
 
   const EASE: [number, number, number, number] = [0.2, 0, 0, 1]; // --ease
-  const MS_PER_CHAR = { display: 45, label: 35, body: 17 }; // DESIGN.md §7
+  const MS_PER_CHAR = { display: 45, quick: 12 }; // the hero's name; titles in later sections (DESIGN.md §7)
   const FRAME_PAD = 3; // px between a text frame and its text
+  const QUICK = { grow: 0.35, rise: 0.25 }; // s, frames in later sections
+  const SHOWN = 0.3, DWELL = 120; // a section starts once 30% of it is in view, for 120ms,
+  const SETTLED = 1200; // px/s: counted only while scrolling slower than this (i.e. stopping)
+  const CURSOR = '<path d="M1 1 L1 16 L5 12.5 L8 19 L10.5 18 L7.6 11.6 L12.5 11.6 Z" />';
+  const NS = "http://www.w3.org/2000/svg";
 
   type Box = { x: number; y: number; w: number; h: number };
-  type Task = (a: Agent) => Promise<void>;
+  type Anim = { cancel(): void };
   class Aborted extends Error {}
 
   const root = document.documentElement;
   const overlay = document.querySelector<HTMLElement>("[data-bi-overlay]")!;
   const skipBtn = document.querySelector<HTMLButtonElement>("[data-bi-skip]")!;
-  const cursorEls = [...overlay.querySelectorAll<SVGElement>("[data-bi-cursor]")];
-  const caretEls = [...overlay.querySelectorAll<HTMLElement>("[data-bi-caret]")];
   const reduce = matchMedia("(prefers-reduced-motion: reduce)");
 
   const q = <T extends Element = HTMLElement>(s: string, from: ParentNode = document) => from.querySelector<T>(s);
@@ -133,284 +129,6 @@ const agents = [0, 1, 2, 3, 4];
     const r = el.getBoundingClientRect();
     return { x: r.left + scrollX, y: r.top + scrollY, w: r.width, h: r.height };
   };
-  const travel = (dist: number) => Math.min(0.7, Math.max(0.3, dist / 1600));
-
-  /** One build of the page: shared state, a queue of tasks, and the agents that do them. */
-  class Director {
-    aborted = false;
-    queue: Task[] = [];
-    pendingUnits = 0;
-    busy = 0;
-    live = new Set<{ cancel(): void }>();
-    typed = new Map<HTMLElement, string>();
-    lines: HTMLElement[] = []; // overlay pieces (lines, frames) removed when the build ends
-    trailing = new Set<Promise<unknown>>(); // fades nobody waits on
-    rowLines = new Map<HTMLElement, HTMLElement[]>();
-    agents: Agent[] = [];
-    stopListening: (() => void) | null = null;
-    private wakers: (() => void)[] = [];
-    private idlers: (() => void)[] = [];
-
-    check() { if (this.aborted) throw new Aborted(); }
-    wake() { for (const w of this.wakers.splice(0)) w(); }
-    push(tasks: Task[]) { this.queue.push(...tasks); this.wake(); }
-    settled() {
-      if (this.busy === 0 && this.queue.length === 0) for (const r of this.idlers.splice(0)) r();
-    }
-    whenIdle() { return new Promise<void>((r) => { this.idlers.push(r); this.settled(); }); }
-    /** Next task, waiting for one if sections are still to come; null when nothing is left. */
-    async next(): Promise<Task | null> {
-      for (;;) {
-        this.check();
-        const t = this.queue.shift();
-        if (t) return t;
-        if (this.pendingUnits === 0) return null;
-        await new Promise<void>((r) => this.wakers.push(r));
-      }
-    }
-    async play(el: Element, keyframes: Record<string, unknown>, opts: Record<string, unknown> = {}) {
-      this.check();
-      const a = animate(el, keyframes as any, { ease: EASE, ...opts });
-      this.live.add(a);
-      try { await a; } finally { this.live.delete(a); }
-      this.check();
-    }
-    /** Run a step every frame for `dur` seconds, with progress 0..1. */
-    tween(dur: number, step: (p: number) => void) {
-      this.check();
-      return new Promise<void>((resolve, reject) => {
-        const t0 = performance.now();
-        const frame = (now: number) => {
-          if (this.aborted) return reject(new Aborted());
-          const p = Math.min(1, (now - t0) / 1000 / dur);
-          step(p);
-          if (p < 1) requestAnimationFrame(frame);
-          else resolve();
-        };
-        requestAnimationFrame(frame);
-      });
-    }
-    /** Start an animation without waiting for it (it's still cancelled by Skip). */
-    later(p: Promise<unknown>) {
-      const q = p.catch(() => {});
-      this.trailing.add(q);
-      q.then(() => this.trailing.delete(q));
-    }
-    updateSkip() { skipBtn.hidden = !this.agents.some((a) => a.present); }
-  }
-
-  class Agent {
-    x = 0;
-    y = 0;
-    present = false;
-    constructor(private d: Director, private el: SVGElement, private caret: HTMLElement) {}
-
-    wait(ms: number) { return new Promise((r) => setTimeout(r, ms)).then(() => this.d.check()); }
-    play(el: Element, kf: Record<string, unknown>, opts?: Record<string, unknown>) { return this.d.play(el, kf, opts); }
-
-    place(x: number, y: number) {
-      this.x = x; this.y = y;
-      this.el.style.transform = `translate(${x}px, ${y}px)`;
-    }
-    enter(x: number, y: number, fade = false) {
-      this.place(x, y);
-      this.el.style.opacity = "1";
-      if (fade) this.d.later(this.play(this.el, { opacity: [0, 1] }, { duration: 0.2 }));
-      this.present = true;
-      this.d.updateSkip();
-    }
-    /** Come back in from a side edge of the current screen. */
-    arrive() {
-      const left = Math.random() < 0.5;
-      this.enter(left ? -20 : innerWidth + 20, scrollY + innerHeight * (0.3 + Math.random() * 0.5));
-    }
-    async move(x: number, y: number, duration = travel(Math.hypot(x - this.x, y - this.y))) {
-      if (Math.hypot(x - this.x, y - this.y) < 1) return this.d.check(); // already there
-      const from = `translate(${this.x}px, ${this.y}px)`;
-      this.place(x, y);
-      await this.play(this.el, { transform: [from, this.el.style.transform] }, { duration });
-    }
-    async leave() {
-      const x = this.x - scrollX < innerWidth / 2 ? -40 : innerWidth + 40;
-      this.el.style.opacity = "0";
-      await Promise.all([this.move(x, this.y, 0.6), this.play(this.el, { opacity: [1, 0] }, { duration: 0.6 })]);
-      this.present = false;
-      this.d.updateSkip();
-    }
-
-    /** Type an element's text one character at a time behind a caret. The cursor follows
-        the caret, unless it's holding a frame (then only the caret moves). */
-    async type(el: HTMLElement | null, msPerChar: number, follow = true) {
-      if (!el) return;
-      const text = this.d.typed.get(el);
-      const spans = [...el.children] as HTMLElement[];
-      if (text === undefined || !spans.length) return;
-      if (follow) {
-        const first = box(spans[0]);
-        await this.move(first.x, first.y + first.h + 2);
-        await this.wait(50);
-      }
-      const c = this.caret;
-      c.style.opacity = "1";
-      for (let i = 0; i < spans.length; i++) {
-        spans[i].style.visibility = "visible";
-        const r = box(spans[i]);
-        c.style.height = `${r.h}px`;
-        c.style.transform = `translate(${r.x + r.w}px, ${r.y}px)`;
-        // The cursor drifts along with the caret, a word at a time.
-        if (follow && (text[i] === " " || i === spans.length - 1)) {
-          this.move(r.x + r.w, r.y + r.h + 2, 0.25).catch(() => {});
-        }
-        await this.wait(msPerChar * (0.6 + Math.random() * 0.8));
-      }
-      c.style.opacity = "0";
-      // Done: put the plain text back.
-      el.textContent = text;
-      this.d.typed.delete(el);
-      await this.wait(50);
-    }
-
-    /** Lay out a text element like a design tool (ADR 0014): drag out a frame from its
-        top-left corner to full size, with a size label that fades, then set the text in
-        (typed behind a caret, or a short fade and rise). The frame fades once the text lands. */
-    async frame(el: HTMLElement | null, set: "type" | "rise") {
-      if (!el) return;
-      const b = box(el);
-      const x = b.x - FRAME_PAD, y = b.y - FRAME_PAD;
-      const w = b.w + 2 * FRAME_PAD, h = b.h + 2 * FRAME_PAD;
-      await this.move(x, y);
-      const f = document.createElement("div");
-      f.className = "bi-frame";
-      f.innerHTML = "<i></i><i></i><i></i><i></i><span class='bi-size'></span>";
-      f.style.left = `${x}px`;
-      f.style.top = `${y}px`;
-      overlay.append(f);
-      this.d.lines.push(f);
-      const size = f.querySelector<HTMLElement>(".bi-size")!;
-      const w0 = Math.min(w, 16), h0 = Math.min(h, 10);
-      await this.d.tween(0.45, (p) => {
-        const e = ease(p);
-        const fw = w0 + (w - w0) * e, fh = h0 + (h - h0) * e;
-        f.style.width = `${fw}px`;
-        f.style.height = `${fh}px`;
-        this.place(x + fw, y + fh);
-        size.textContent = `W ${Math.round(fw - 2 * FRAME_PAD)} · H ${Math.round(fh - 2 * FRAME_PAD)}`;
-      });
-      this.d.later(this.play(size, { opacity: [1, 0] }, { duration: 0.4, delay: 0.1 }));
-      el.style.opacity = "1";
-      if (set === "type") await this.type(el, MS_PER_CHAR.display, false);
-      else await this.play(el, { opacity: [0, 1], transform: ["translateY(4px)", "none"] }, { duration: 0.3 });
-      this.d.later(this.play(f, { opacity: [1, 0] }, { duration: 0.3 }).then(() => f.remove()));
-    }
-
-    /** Draw a 1px horizontal or vertical line from one point to another, cursor moving along. */
-    async draw(x1: number, y1: number, x2: number, y2: number, kind: "bi-rule") {
-      const h = y1 === y2;
-      const line = document.createElement("span");
-      line.className = `bi-line ${kind}`;
-      line.style.left = `${Math.min(x1, x2)}px`;
-      line.style.top = `${Math.min(y1, y2)}px`;
-      line.style[h ? "width" : "height"] = `${Math.abs(h ? x2 - x1 : y2 - y1)}px`;
-      line.style.transformOrigin = h ? (x2 >= x1 ? "left" : "right") : (y2 >= y1 ? "top" : "bottom");
-      const from = h ? "scaleX(0)" : "scaleY(0)";
-      line.style.transform = from;
-      overlay.append(line);
-      this.d.lines.push(line);
-      await this.move(x1, y1);
-      const dur = Math.min(0.6, Math.max(0.35, Math.hypot(x2 - x1, y2 - y1) / 2000));
-      line.style.transform = "none";
-      await Promise.all([
-        this.play(line, { transform: [from, h ? "scaleX(1)" : "scaleY(1)"] }, { duration: dur }),
-        this.move(x2, y2, dur),
-      ]);
-      return line;
-    }
-
-    /** Bring a box in small and out of place, drag it to its spot, then resize it. */
-    async drag(el: HTMLElement, to: Box, from: { dx: number; dy: number; s: number }) {
-      const at = (dx: number, dy: number, s: number) => `translate(${dx}px, ${dy}px) scale(${s})`;
-      const grab = Math.min(10, to.w * from.s * 0.3);
-      await this.move(to.x + from.dx + grab, to.y + from.dy + grab);
-      el.style.transform = at(from.dx, from.dy, from.s);
-      el.style.opacity = "1";
-      await this.play(el, { opacity: [0, 1] }, { duration: 0.2 });
-      await this.wait(100);
-      el.style.transform = at(0, 0, from.s);
-      await Promise.all([
-        this.play(el, { transform: [at(from.dx, from.dy, from.s), el.style.transform] }, { duration: 0.6 }),
-        this.move(to.x + grab, to.y + grab, 0.6),
-      ]);
-      await this.move(to.x + to.w * from.s, to.y + to.h * from.s, 0.3);
-      await this.wait(50);
-      el.style.transform = "none";
-      await Promise.all([
-        this.play(el, { transform: [at(0, 0, from.s), at(0, 0, 1)] }, { duration: 0.5 }),
-        this.move(to.x + to.w, to.y + to.h, 0.5),
-      ]);
-    }
-  }
-
-  const FRAME_STYLES = ["opacity", "transform"] as const;
-  const DRAG_STYLES = ["opacity", "transform", "transformOrigin", "outline", "outlineOffset"] as const;
-  const release = (el: HTMLElement) => { for (const p of DRAG_STYLES) el.style[p] = ""; };
-
-  /** Measure the finished layout, then put every element in its "not made yet" state. */
-  function prepare(d: Director) {
-    root.classList.add("b-active");
-    for (const el of qa("[data-type]")) {
-      const text = (el.textContent ?? "").replace(/\s+/g, " ").trim();
-      el.textContent = "";
-      for (const ch of text) {
-        const s = document.createElement("span");
-        s.textContent = ch;
-        s.style.visibility = "hidden";
-        el.append(s);
-      }
-      d.typed.set(el, text);
-    }
-    for (const el of qa("[data-frame]")) el.style.opacity = "0";
-    const boxes = new Map(qa("[data-drag]").map((el) => [el, box(el)]));
-    for (const el of boxes.keys()) {
-      el.style.opacity = "0";
-      el.style.transformOrigin = "top left";
-      el.style.outline = "1px solid var(--accent)";
-      el.style.outlineOffset = "2px";
-    }
-    // The constellation's stars, stardust, figures and labels are placed by an agent.
-    for (const el of qa<Element & ElementCSSInlineStyle>("[data-c-node], [data-c-label-for], [data-c-dust], [data-c-fig]")) el.style.opacity = "0";
-    root.classList.remove("is-building");
-    overlay.style.height = `${root.scrollHeight}px`;
-    overlay.hidden = false;
-    return boxes;
-  }
-
-  function finish() {
-    const d = current;
-    if (d) {
-      d.aborted = true;
-      d.wake();
-      d.stopListening?.();
-      for (const a of d.live) { try { a.cancel(); } catch {} }
-      for (const [el, text] of d.typed) el.textContent = text;
-      for (const l of d.lines) l.remove();
-    }
-    for (const el of qa("[data-drag]")) release(el);
-    for (const el of qa("[data-frame]")) for (const p of FRAME_STYLES) el.style[p] = "";
-    for (const el of qa<Element & ElementCSSInlineStyle>("[data-c-node], [data-c-label-for], [data-c-dust], [data-c-fig]")) {
-      el.style.opacity = "";
-      el.style.transform = "";
-    }
-    for (const l of qa<SVGLineElement>("[data-c-line]")) { l.style.strokeDasharray = ""; l.style.strokeDashoffset = ""; }
-    q("[data-c-fx]")?.replaceChildren();
-    for (const r of qa("[data-row]")) delete r.dataset.built;
-    for (const c of cursorEls) { c.style.opacity = ""; c.style.transform = ""; }
-    for (const c of caretEls) c.style.opacity = "";
-    overlay.hidden = true;
-    skipBtn.hidden = true;
-    root.classList.remove("is-building", "b-active", "hero-building");
-    try { sessionStorage.setItem("built", "1"); } catch {}
-    current = null;
-  }
 
   /** cubic-bezier(x1, y1, x2, y2) as a function of progress, for motion driven frame by frame. */
   const bezier = (x1: number, y1: number, x2: number, y2: number) => (x: number) => {
@@ -430,7 +148,452 @@ const agents = [0, 1, 2, 3, 4];
     return (lo + hi) / 2;
   };
 
+  /** One build of the page: what's been taken apart, and the crews putting it back. */
+  class Director {
+    aborted = false;
+    typed = new Map<HTMLElement, string>();
+    markup = new Map<HTMLElement, string>(); // typed elements' original HTML (links, lang spans)
+    agents = new Set<Agent>();
+    crews = new Set<Crew>();
+    units: Unit[] = [];
+    cleanup: (() => void)[] = [];
+    updateSkip() { skipBtn.hidden = ![...this.agents].some((a) => a.present); }
+    /** Put a typed element's own HTML back at once. */
+    restore(el: HTMLElement | null) {
+      if (!el) return;
+      const text = this.typed.get(el);
+      if (text === undefined) return;
+      el.innerHTML = this.markup.get(el) ?? text;
+      this.typed.delete(el);
+    }
+  }
+
+  /** The agents and everything in flight for one part of the page (the hero, a work row, a
+      section), so that part can be finished on its own, or stopped and finished instantly. */
+  class Crew {
+    aborted = false;
+    live = new Set<Anim>();
+    pieces: Element[] = []; // overlay lines and frames
+    trailing = new Set<Promise<unknown>>(); // fades nobody waits on
+    agents: Agent[] = [];
+    constructor(public d: Director) { d.crews.add(this); }
+    get stopped() { return this.aborted || this.d.aborted; }
+    check() { if (this.stopped) throw new Aborted(); }
+    wait(ms: number) { return new Promise((r) => setTimeout(r, ms)).then(() => this.check()); }
+    async play(el: Element, keyframes: Record<string, unknown>, opts: Record<string, unknown> = {}) {
+      this.check();
+      const a = animate(el, keyframes as any, { ease: EASE, ...opts });
+      this.live.add(a);
+      try { await a; } finally { this.live.delete(a); }
+      this.check();
+    }
+    /** Run a step every frame for `dur` seconds, with progress 0..1. */
+    tween(dur: number, step: (p: number) => void) {
+      this.check();
+      return new Promise<void>((resolve, reject) => {
+        const t0 = performance.now();
+        const frame = (now: number) => {
+          if (this.stopped) return reject(new Aborted());
+          const p = Math.min(1, (now - t0) / 1000 / dur);
+          step(p);
+          if (p < 1) requestAnimationFrame(frame);
+          else resolve();
+        };
+        requestAnimationFrame(frame);
+      });
+    }
+    /** Start an animation without waiting for it (it's still stopped with the crew). */
+    later(p: Promise<unknown>) {
+      const q = p.catch(() => {});
+      this.trailing.add(q);
+      q.then(() => this.trailing.delete(q));
+    }
+    /** Fade an element in with a 4px rise (typed elements get their own HTML back first). */
+    async reveal(el: HTMLElement | null, delayMs = 0) {
+      if (!el) return;
+      this.d.restore(el);
+      el.style.opacity = "0";
+      if (delayMs) await this.wait(delayMs);
+      el.style.opacity = "";
+      await this.play(el, { opacity: [0, 1], transform: ["translateY(4px)", "none"] }, { duration: 0.3 });
+    }
+    spawn(x: number, y: number, quick = true) {
+      const a = new Agent(this, quick);
+      this.agents.push(a);
+      a.enter(x, y);
+      return a;
+    }
+    /** Stop: cancel what's in flight and take the agents and overlay pieces away. */
+    halt() {
+      this.aborted = true;
+      for (const a of this.live) { try { a.cancel(); } catch {} }
+      this.live.clear();
+      for (const p of this.pieces) p.remove();
+      for (const a of this.agents) a.remove();
+      this.d.crews.delete(this);
+    }
+    /** A normal end: the last frames fade, then the agents step away. */
+    async wrapUp() {
+      await Promise.all(this.trailing);
+      await Promise.all(this.agents.map((a) => a.leave()));
+      for (const p of this.pieces) p.remove();
+      this.d.crews.delete(this);
+    }
+  }
+
+  class Agent {
+    x = 0;
+    y = 0;
+    present = false;
+    private el: SVGSVGElement;
+    private caret: HTMLElement;
+    constructor(private c: Crew, private quick: boolean) {
+      this.el = document.createElementNS(NS, "svg");
+      this.el.setAttribute("class", "bi-cursor");
+      this.el.setAttribute("viewBox", "0 0 14 20");
+      this.el.setAttribute("width", "14");
+      this.el.setAttribute("height", "20");
+      this.el.innerHTML = CURSOR;
+      this.caret = document.createElement("span");
+      this.caret.className = "bi-caret";
+      overlay.append(this.caret, this.el);
+      c.d.agents.add(this);
+    }
+
+    private travel(dist: number) {
+      return this.quick ? Math.min(0.2, Math.max(0.1, dist / 3000)) : Math.min(0.7, Math.max(0.3, dist / 1600));
+    }
+    place(x: number, y: number) {
+      this.x = x; this.y = y;
+      this.el.style.transform = `translate(${x}px, ${y}px)`;
+    }
+    enter(x: number, y: number) {
+      this.place(x, y);
+      this.el.style.opacity = "1";
+      this.c.later(this.c.play(this.el, { opacity: [0, 1] }, { duration: this.quick ? 0.12 : 0.2 }));
+      this.present = true;
+      this.c.d.updateSkip();
+    }
+    async move(x: number, y: number, duration = this.travel(Math.hypot(x - this.x, y - this.y))) {
+      if (Math.hypot(x - this.x, y - this.y) < 1) return this.c.check(); // already there
+      const from = `translate(${this.x}px, ${this.y}px)`;
+      this.place(x, y);
+      await this.c.play(this.el, { transform: [from, this.el.style.transform] }, { duration });
+    }
+    async leave() {
+      if (!this.present) return this.remove();
+      try {
+        const a = animate(this.el, { opacity: [1, 0], transform: [this.el.style.transform, `translate(${this.x + 12}px, ${this.y + 16}px)`] } as any, { ease: EASE, duration: 0.25 });
+        this.c.live.add(a);
+        await a;
+      } catch {}
+      this.remove();
+    }
+    remove() {
+      this.el.remove();
+      this.caret.remove();
+      this.present = false;
+      this.c.d.agents.delete(this);
+      this.c.d.updateSkip();
+    }
+
+    /** Type an element's text one character at a time behind a caret. The cursor follows
+        the caret, unless it's holding a frame (then only the caret moves). */
+    async type(el: HTMLElement | null, msPerChar: number, follow = true) {
+      if (!el) return;
+      const text = this.c.d.typed.get(el);
+      const spans = [...el.children] as HTMLElement[];
+      if (text === undefined || !spans.length) return;
+      if (follow) {
+        const first = box(spans[0]);
+        await this.move(first.x, first.y + first.h + 2);
+      }
+      const c = this.caret;
+      c.style.opacity = "1";
+      for (let i = 0; i < spans.length; i++) {
+        spans[i].style.visibility = "visible";
+        const r = box(spans[i]);
+        c.style.height = `${r.h}px`;
+        c.style.transform = `translate(${r.x + r.w}px, ${r.y}px)`;
+        // The cursor drifts along with the caret, a word at a time.
+        if (follow && (text[i] === " " || i === spans.length - 1)) {
+          this.move(r.x + r.w, r.y + r.h + 2, this.quick ? 0.12 : 0.25).catch(() => {});
+        }
+        await this.c.wait(msPerChar * (0.6 + Math.random() * 0.8));
+      }
+      c.style.opacity = "0";
+      this.c.d.restore(el);
+    }
+
+    /** Lay out an element like a design tool (ADR 0014): drag out a frame from its top-left
+        corner to full size, with a size label that fades, then set the content in (typed
+        behind a caret, or a short fade and rise). The frame fades once the content lands. */
+    async frame(el: HTMLElement | null, set: "type" | "rise" | "outline", t = { grow: 0.45, rise: 0.3 }) {
+      if (!el) return;
+      const b = box(el);
+      if (b.w === 0) { el.style.opacity = ""; return; } // not displayed: nothing to lay out
+      const x = b.x - FRAME_PAD, y = b.y - FRAME_PAD;
+      const w = b.w + 2 * FRAME_PAD, h = b.h + 2 * FRAME_PAD;
+      await this.move(x, y);
+      const f = document.createElement("div");
+      f.className = "bi-frame";
+      f.innerHTML = "<i></i><i></i><i></i><i></i><span class='bi-size'></span>";
+      f.style.left = `${x}px`;
+      f.style.top = `${y}px`;
+      overlay.append(f);
+      this.c.pieces.push(f);
+      const size = f.querySelector<HTMLElement>(".bi-size")!;
+      const w0 = Math.min(w, 16), h0 = Math.min(h, 10);
+      await this.c.tween(t.grow, (p) => {
+        const e = ease(p);
+        const fw = w0 + (w - w0) * e, fh = h0 + (h - h0) * e;
+        f.style.width = `${fw}px`;
+        f.style.height = `${fh}px`;
+        this.place(x + fw, y + fh);
+        size.textContent = `W ${Math.round(fw - 2 * FRAME_PAD)} · H ${Math.round(fh - 2 * FRAME_PAD)}`;
+      });
+      this.c.later(this.c.play(size, { opacity: [1, 0] }, { duration: 0.4, delay: 0.1 }));
+      // "outline": the content is already there (it arrived with a view transition).
+      if (set !== "outline") {
+        if (set === "rise") this.c.d.restore(el); // a typed element rises in whole
+        el.style.opacity = "1";
+        if (set === "type") await this.type(el, MS_PER_CHAR.display, false);
+        else await this.c.play(el, { opacity: [0, 1], transform: ["translateY(4px)", "none"] }, { duration: t.rise });
+      }
+      el.style.opacity = "";
+      this.c.later(this.c.play(f, { opacity: [1, 0] }, { duration: 0.3 }).then(() => f.remove()));
+    }
+
+    /** Draw a 1px horizontal line from one point to another, cursor moving along. */
+    async draw(x1: number, x2: number, y: number, dur: number) {
+      const line = rule(this.c, x1, x2, y);
+      await this.move(x1, y);
+      await Promise.all([
+        this.c.play(line, { transform: ["scaleX(0)", "scaleX(1)"] }, { duration: dur }),
+        this.move(x2, y, dur),
+      ]);
+    }
+  }
+
+  /** A hairline in the overlay, ready to grow from x1 toward x2 (it's removed with the crew). */
+  function rule(c: Crew, x1: number, x2: number, y: number) {
+    const line = document.createElement("span");
+    line.className = "bi-line bi-rule";
+    line.style.left = `${Math.min(x1, x2)}px`;
+    line.style.top = `${y}px`;
+    line.style.width = `${Math.abs(x2 - x1)}px`;
+    line.style.transformOrigin = x2 >= x1 ? "left" : "right";
+    overlay.append(line);
+    c.pieces.push(line);
+    return line;
+  }
+
+  const SKY = "[data-c-node], [data-c-label-for], [data-c-dust], [data-c-fig]";
+  const within = (roots: Element[], sel: string) =>
+    roots.flatMap((r) => [...(r.matches(sel) ? [r] : []), ...qa(sel, r)]) as (HTMLElement & SVGElement)[];
+
+  /** Measure the finished layout, then put every element in its "not made yet" state. */
+  function prepare(d: Director) {
+    root.classList.add("b-active");
+    for (const el of qa("[data-type]")) {
+      const text = (el.textContent ?? "").replace(/\s+/g, " ").trim();
+      d.markup.set(el, el.innerHTML);
+      el.textContent = "";
+      for (const ch of text) {
+        const s = document.createElement("span");
+        s.textContent = ch;
+        s.style.visibility = "hidden";
+        el.append(s);
+      }
+      d.typed.set(el, text);
+    }
+    for (const el of qa("[data-frame]")) el.style.opacity = "0";
+    for (const el of qa("[data-made]")) el.removeAttribute("data-made");
+    for (const el of qa("[data-row]")) delete el.dataset.built;
+    // The constellation's stars, stardust, figures and labels are placed by an agent.
+    for (const el of qa<HTMLElement>(SKY)) el.style.opacity = "0";
+    root.classList.remove("is-building");
+    overlay.style.height = `${root.scrollHeight}px`;
+    overlay.hidden = false;
+  }
+
+  /** Put part of the page (or all of it) in its finished state at once. */
+  function settle(d: Director, roots: Element[]) {
+    for (const el of [...d.typed.keys()]) if (roots.some((r) => r.contains(el))) d.restore(el);
+    for (const el of within(roots, "[data-frame]")) { el.style.opacity = ""; el.style.transform = ""; }
+    for (const el of within(roots, "[data-row]")) el.dataset.built = "";
+    for (const el of within(roots, SKY)) { el.style.opacity = ""; el.style.transform = ""; }
+    for (const l of within(roots, "[data-c-line]")) { l.style.strokeDasharray = ""; l.style.strokeDashoffset = ""; }
+    for (const fx of within(roots, "[data-c-fx]")) fx.replaceChildren();
+  }
+
   let current: Director | null = null;
+
+  function finish() {
+    const d = current;
+    if (d) {
+      d.aborted = true;
+      for (const stop of d.cleanup) stop();
+      for (const c of [...d.crews]) c.halt();
+      for (const a of [...d.agents]) a.remove();
+      settle(d, [document.body]);
+    }
+    for (const el of qa("[data-frame]")) { el.style.opacity = ""; el.style.transform = ""; }
+    for (const el of qa("[data-row]")) delete el.dataset.built;
+    overlay.replaceChildren();
+    overlay.hidden = true;
+    skipBtn.hidden = true;
+    root.classList.remove("is-building", "b-active", "hero-building");
+    if (d) for (const u of d.units) u.el.setAttribute("data-made", "");
+    current = null;
+  }
+
+  /** The commit constellation (DESIGN.md §8, ADR 0011). The agent sweeps outward from the
+      center on a smooth spiral; stars ripple in as it passes (a quick scale-up, and a
+      faint ping ring on the ones it places itself), with a short fading trail. Stardust
+      fades in ring by ring behind it, and the constellation lines draw last. About 2s. */
+  async function placeNodes(c: Crew, a: Agent, figure: HTMLElement) {
+    const nodes = qa<SVGAElement>("[data-c-node]", figure);
+    const svg = q<SVGSVGElement>(".c-sky svg", figure);
+    const fx = q<SVGGElement>("[data-c-fx]", figure);
+    if (!nodes.length || !svg || !fx) return;
+    const SWEEP = 1.7, RIPPLE = 0.004, TRAIL = 0.2, TRAIL_MAX = 8, TURNS = 1.75; // s, s/unit, s, units, turns
+    const sb = svg.getBoundingClientRect();
+    const vb = svg.viewBox.baseVal;
+    const toPage = (x: number, y: number) => [
+      sb.left + scrollX + ((x - vb.x) / vb.width) * sb.width,
+      sb.top + scrollY + ((y - vb.y) / vb.height) * sb.height,
+    ] as const;
+    const stars = nodes.map((el) => {
+      const x = Number(el.dataset.x), y = Number(el.dataset.y);
+      return { el, x, y, r: Number(el.dataset.r), dist: Math.hypot(x - 50, y - 50), placed: !!q(".c-halo", el), at: 0 };
+    });
+    const R = Math.max(...stars.map((st) => st.dist)) + 1;
+    const last = stars[stars.length - 1];
+    const a0 = Math.atan2(last.y - 50, last.x - 50) - TURNS * 2 * Math.PI; // ends on the newest
+    const spiral = (p: number) => {
+      const ang = a0 + p * TURNS * 2 * Math.PI;
+      return [50 + R * p * Math.cos(ang), 50 + R * p * Math.sin(ang)] as const;
+    };
+    // Each star appears when the sweep reaches its distance from the center, a little
+    // later the farther it is from the cursor at that moment (the ripple).
+    for (const st of stars) {
+      const p = Math.min(1, st.dist / R);
+      const [cx, cy] = spiral(p);
+      st.at = easeInverse(p) * SWEEP + Math.hypot(st.x - cx, st.y - cy) * RIPPLE;
+    }
+    // The agent places a few itself: the bright ones, plus any it passes right over.
+    let extra = 0;
+    for (const st of stars) {
+      if (st.placed) continue;
+      const [cx, cy] = spiral(Math.min(1, st.dist / R));
+      if (Math.hypot(st.x - cx, st.y - cy) < 3 && extra < 12) { st.placed = true; extra++; }
+    }
+    const pending = [...stars].sort((p, q) => p.at - q.at);
+    const dustBands = qa<SVGGElement>("[data-c-dust]", figure).map((g) => {
+      // The band's outer edge (6 rings out to radius 46, see lib/constellation.ts).
+      const outer = Math.min(1, (((Number(g.dataset.cDust) + 1) / 6) * 46) / R);
+      return { g, at: easeInverse(outer) * SWEEP + 0.15 };
+    });
+    const end = Math.max(SWEEP, ...stars.map((st) => st.at)) + 0.15;
+
+    const [sx, sy] = toPage(...spiral(0));
+    await a.move(sx, sy);
+    const trail = document.createElementNS(NS, "path");
+    trail.setAttribute("class", "c-trail");
+    fx.append(trail);
+    const history: [number, number, number][] = [];
+    const appearing: Promise<unknown>[] = [];
+    const dusting: Promise<unknown>[] = []; // not waited on: lines start while dust fades in
+    const shown = new Set<(typeof dustBands)[number]>();
+    const ping = (st: (typeof stars)[number]) => {
+      const ring = document.createElementNS(NS, "circle");
+      ring.setAttribute("class", "c-ping");
+      ring.setAttribute("cx", String(st.x));
+      ring.setAttribute("cy", String(st.y));
+      ring.setAttribute("r", String(st.r + 2.2));
+      ring.style.transformBox = "fill-box";
+      ring.style.transformOrigin = "center";
+      ring.setAttribute("vector-effect", "non-scaling-stroke");
+      fx.append(ring);
+      appearing.push(c.play(ring, { opacity: [0.5, 0], transform: ["scale(0.3)", "scale(1)"] }, { duration: 0.3 })
+        .finally(() => ring.remove()));
+    };
+
+    const t0 = performance.now();
+    await new Promise<void>((resolve, reject) => {
+      const frame = (now: number) => {
+        if (c.stopped) return reject(new Aborted());
+        const t = (now - t0) / 1000;
+        const [x, y] = spiral(ease(Math.min(1, t / SWEEP)));
+        const [px, py] = toPage(x, y);
+        a.place(px, py);
+        history.push([t, x, y]);
+        while (history.length && history[0][0] < t - TRAIL) history.shift();
+        // Keep the trail short even where the cursor moves fast.
+        let length = 0;
+        for (let k = history.length - 1; k > 0; k--) {
+          length += Math.hypot(history[k][1] - history[k - 1][1], history[k][2] - history[k - 1][2]);
+          if (length > TRAIL_MAX) { history.splice(0, k); break; }
+        }
+        trail.setAttribute("d", history.map(([, hx, hy], i) => `${i ? "L" : "M"}${hx} ${hy}`).join(""));
+        while (pending.length && pending[0].at <= t) {
+          const st = pending.shift()!;
+          appearing.push(c.play(st.el, { opacity: [0, 1], transform: ["scale(0.3)", "scale(1.25)", "scale(1)"] }, { duration: 0.3 }));
+          if (st.placed) ping(st);
+        }
+        for (const b of dustBands) {
+          if (b.at <= t && !shown.has(b)) {
+            shown.add(b);
+            dusting.push(c.play(b.g, { opacity: [0, 1] }, { duration: 0.5 }));
+          }
+        }
+        // The sweep stops at SWEEP and end is later than SWEEP + TRAIL, so the trail has
+        // already shrunk to nothing by the time the loop ends.
+        if (t < end) requestAnimationFrame(frame);
+        else resolve();
+      };
+      requestAnimationFrame(frame);
+    });
+    trail.remove();
+    // The last stars are still settling; the lines start now and they're tidied up after.
+    const placing = Promise.all(appearing);
+    placing.catch(() => {});
+    Promise.all(dusting).then(() => { for (const b of dustBands) b.g.style.opacity = ""; }, () => {});
+
+    // Constellation lines last: the agent visits each milestone and its figure draws out
+    // from it. About 1.2s in all, however many milestones there are.
+    const figs = qa<SVGGElement>("[data-c-fig]", figure);
+    const each = Math.min(0.5, 1.2 / Math.max(1, figs.length));
+    for (const g of figs) {
+      g.style.opacity = "";
+      const lines = qa<SVGLineElement>("[data-c-line]", g);
+      for (const l of lines) { l.style.strokeDasharray = "1"; l.style.strokeDashoffset = "1"; }
+      const star = q<SVGAElement>(`[data-c-node][data-tags][data-fig="${g.dataset.cFig}"]`, figure);
+      if (star) { const b = box(star); await a.move(b.x + b.w / 2, b.y + b.h / 2, Math.max(0.2, each * 0.6)); }
+      const label = q<HTMLElement>(`[data-c-label-for="${g.dataset.cFig}"]`, figure);
+      await Promise.all([
+        ...lines.map((l) => c.play(l, { strokeDashoffset: ["1", "0"] }, { duration: each })),
+        label ? c.play(label, { opacity: [0, 1] }, { duration: each }) : null,
+      ]);
+    }
+    for (const el of qa<HTMLElement>("[data-c-label-for]", figure)) el.style.opacity = "";
+    for (const l of qa<SVGLineElement>("[data-c-line]", figure)) { l.style.strokeDasharray = ""; l.style.strokeDashoffset = ""; }
+    await placing;
+    for (const st of stars) { st.el.style.opacity = ""; st.el.style.transform = ""; }
+  }
+
+  /** A part of the page that builds itself: when it's triggered, what it covers, how. */
+  type Unit = {
+    el: Element; // starts when this enters the screen
+    roots: Element[]; // what it builds (and finishes, if it has to finish instantly)
+    run: (c: Crew) => Promise<void>;
+    state: "waiting" | "running" | "done";
+    seen?: number; // when it last came 30% into view
+    after?: Unit; // doesn't start before this one is done
+    crew?: Crew;
+    onDone?: () => void;
+  };
 
   async function build() {
     if (current) return;
@@ -442,308 +605,259 @@ const agents = [0, 1, 2, 3, 4];
     clearTimeout((window as any).__buildFailsafe);
     // Positions depend on web fonts; don't wait longer than 600ms for them.
     await Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 600))]);
+    // After a view transition (a project title morphing in), start once it has finished.
+    // Browsers without page-reveal events don't wait.
+    const revealed = (window as any).__revealed as Promise<void> | undefined;
+    if (revealed) await Promise.race([revealed, new Promise((r) => setTimeout(r, root.classList.contains("vt-in") ? 1500 : 150))]);
     if (d.aborted) return;
+    const page = document.body.dataset.build === "work" ? "work" : "home";
+    if (page === "work") {
+      // A project page's body is Markdown: its section headings are typed and the rest of
+      // each section fades in (hidden before the script by a rule on the page).
+      for (const h of qa(".body > h2")) h.setAttribute("data-type", "");
+      for (const el of qa(".body > :not(h2)")) el.setAttribute("data-frame", "");
+    }
+    prepare(d);
 
-    const boxes = prepare(d);
-    const vw = innerWidth, vh = innerHeight, top = scrollY;
-    const onScreen = (el: Element) => box(el).y < top + vh;
-    const [a1, a2, a3, a4, a5] = (d.agents = cursorEls.map((c, i) => new Agent(d, c, caretEls[i])));
-
-    const figure = q("[data-constellation]")!;
-    const workLabel = q("#work-title")!;
-    const rows = qa("[data-row]");
-    const rowBoxes = new Map(rows.map((r) => [r, box(r)]));
-
-    // ---- Building blocks shared by the first screen and later sections ----
-    const markBuilt = (row: HTMLElement) => {
-      row.dataset.built = "";
-      for (const l of d.rowLines.get(row) ?? []) l.remove();
+    const vh = innerHeight, top = scrollY;
+    const units = d.units;
+    const unit = (el: Element | null, roots: (Element | null)[], run: Unit["run"], onDone?: () => void, after?: Unit) => {
+      if (el) units.push({ el, roots: roots.filter((r): r is Element => !!r), run, state: "waiting", onDone, after });
     };
-    /** A row's own hairlines: its top edge, plus the bottom edge for the last row. */
-    const drawRowRules = async (a: Agent, row: HTMLElement) => {
-      const b = rowBoxes.get(row)!;
-      const ys = [b.y];
-      if (row === rows[rows.length - 1]) ys.push(b.y + b.h - 1);
-      for (const [i, y] of ys.entries()) {
-        const ltr = i % 2 === 0;
-        const line = await a.draw(ltr ? b.x : b.x + b.w, y, ltr ? b.x + b.w : b.x, y, "bi-rule");
-        if ("built" in row.dataset) line.remove();
-        else d.rowLines.set(row, [...(d.rowLines.get(row) ?? []), line]);
-      }
+    // Later sections (ADR 0019): titles are typed quickly; longer text fades in.
+    const quickType = (c: Crew, el: HTMLElement | null) => {
+      const first = el?.firstElementChild;
+      if (!el || !first) return Promise.resolve();
+      const b = box(first);
+      return c.spawn(b.x, b.y + b.h + 2).type(el, MS_PER_CHAR.quick);
     };
-    const rowTask = (row: HTMLElement): Task => async (a) => {
-      await drawRowRules(a, row);
-      await a.type(q("h3", row), MS_PER_CHAR.label);
-      await a.type(q(".blurb", row), MS_PER_CHAR.body);
-      await a.type(q(".meta", row), MS_PER_CHAR.label);
-      markBuilt(row);
+    const quickFrame = (c: Crew, el: HTMLElement | null, delayMs = 0) => {
+      if (!el) return Promise.resolve();
+      const b = box(el);
+      if (b.w === 0) { el.style.opacity = ""; return Promise.resolve(); }
+      return c.wait(delayMs).then(() => c.spawn(b.x - FRAME_PAD, b.y - FRAME_PAD).frame(el, "rise", QUICK));
     };
-    const typeTask = (el: HTMLElement | null, ms: number): Task => (a) => a.type(el, ms);
-    const caption = q("figcaption", figure);
-    const figureTask: Task = async (a) => {
-      await placeNodes(a);
-      await a.frame(caption, "rise");
-    };
-    /** The commit constellation (DESIGN.md §8, ADR 0011). The agent sweeps outward from the
-        center on a smooth spiral; stars ripple in as it passes (a quick scale-up, and a
-        faint ping ring on the ones it places itself), with a short fading trail. Stardust
-        fades in ring by ring behind it, and the constellation lines draw last. About 2s. */
-    const placeNodes = async (a: Agent) => {
-      const nodes = qa<SVGAElement>("[data-c-node]", figure);
-      const svg = q<SVGSVGElement>(".c-sky svg", figure);
-      const fx = q<SVGGElement>("[data-c-fx]", figure);
-      if (!nodes.length || !svg || !fx) return;
-      const NS = "http://www.w3.org/2000/svg";
-      const SWEEP = 1.7, RIPPLE = 0.004, TRAIL = 0.2, TRAIL_MAX = 8, TURNS = 1.75; // s, s/unit, s, units, turns
-      const sb = svg.getBoundingClientRect();
-      const vb = svg.viewBox.baseVal;
-      const toPage = (x: number, y: number) => [
-        sb.left + scrollX + ((x - vb.x) / vb.width) * sb.width,
-        sb.top + scrollY + ((y - vb.y) / vb.height) * sb.height,
-      ] as const;
-      const stars = nodes.map((el) => {
-        const x = Number(el.dataset.x), y = Number(el.dataset.y);
-        return { el, x, y, r: Number(el.dataset.r), dist: Math.hypot(x - 50, y - 50), placed: !!q(".c-halo", el), at: 0 };
-      });
-      const R = Math.max(...stars.map((st) => st.dist)) + 1;
-      const last = stars[stars.length - 1];
-      const a0 = Math.atan2(last.y - 50, last.x - 50) - TURNS * 2 * Math.PI; // ends on the newest
-      const spiral = (p: number) => {
-        const ang = a0 + p * TURNS * 2 * Math.PI;
-        return [50 + R * p * Math.cos(ang), 50 + R * p * Math.sin(ang)] as const;
-      };
-      // Each star appears when the sweep reaches its distance from the center, a little
-      // later the farther it is from the cursor at that moment (the ripple).
-      for (const st of stars) {
-        const p = Math.min(1, st.dist / R);
-        const [cx, cy] = spiral(p);
-        st.at = easeInverse(p) * SWEEP + Math.hypot(st.x - cx, st.y - cy) * RIPPLE;
-      }
-      // The agent places a few itself: the bright ones, plus any it passes right over.
-      let extra = 0;
-      for (const st of stars) {
-        if (st.placed) continue;
-        const [cx, cy] = spiral(Math.min(1, st.dist / R));
-        if (Math.hypot(st.x - cx, st.y - cy) < 3 && extra < 12) { st.placed = true; extra++; }
-      }
-      const pending = [...stars].sort((p, q) => p.at - q.at);
-      const dustBands = qa<SVGGElement>("[data-c-dust]", figure).map((g) => {
-        // The band's outer edge (6 rings out to radius 46, see lib/constellation.ts).
-        const outer = Math.min(1, (((Number(g.dataset.cDust) + 1) / 6) * 46) / R);
-        return { g, at: easeInverse(outer) * SWEEP + 0.15 };
-      });
-      const end = Math.max(SWEEP, ...stars.map((st) => st.at)) + 0.15;
+    const footer = q("[data-footer]");
 
-      const [sx, sy] = toPage(...spiral(0));
-      await a.move(sx, sy);
-      const trail = document.createElementNS(NS, "path");
-      trail.setAttribute("class", "c-trail");
-      fx.append(trail);
-      const history: [number, number, number][] = [];
-      const appearing: Promise<unknown>[] = [];
-      const dusting: Promise<unknown>[] = []; // not waited on: lines start while dust fades in
-      const shown = new Set<(typeof dustBands)[number]>();
-      const ping = (st: (typeof stars)[number]) => {
-        const ring = document.createElementNS(NS, "circle");
-        ring.setAttribute("class", "c-ping");
-        ring.setAttribute("cx", String(st.x));
-        ring.setAttribute("cy", String(st.y));
-        ring.setAttribute("r", String(st.r + 2.2));
-        ring.style.transformBox = "fill-box";
-        ring.style.transformOrigin = "center";
-        ring.setAttribute("vector-effect", "non-scaling-stroke");
-        fx.append(ring);
-        appearing.push(a.play(ring, { opacity: [0.5, 0], transform: ["scale(0.3)", "scale(1)"] }, { duration: 0.3 })
-          .finally(() => ring.remove()));
-      };
-
-      const t0 = performance.now();
-      await new Promise<void>((resolve, reject) => {
-        const frame = (now: number) => {
-          if (d.aborted) return reject(new Aborted());
-          const t = (now - t0) / 1000;
-          const [x, y] = spiral(ease(Math.min(1, t / SWEEP)));
-          const [px, py] = toPage(x, y);
-          a.place(px, py);
-          history.push([t, x, y]);
-          while (history.length && history[0][0] < t - TRAIL) history.shift();
-          // Keep the trail short even where the cursor moves fast.
-          let length = 0;
-          for (let k = history.length - 1; k > 0; k--) {
-            length += Math.hypot(history[k][1] - history[k - 1][1], history[k][2] - history[k - 1][2]);
-            if (length > TRAIL_MAX) { history.splice(0, k); break; }
-          }
-          trail.setAttribute("d", history.map(([, hx, hy], i) => `${i ? "L" : "M"}${hx} ${hy}`).join(""));
-          while (pending.length && pending[0].at <= t) {
-            const st = pending.shift()!;
-            appearing.push(a.play(st.el, { opacity: [0, 1], transform: ["scale(0.3)", "scale(1.25)", "scale(1)"] }, { duration: 0.3 }));
-            if (st.placed) ping(st);
-          }
-          for (const b of dustBands) {
-            if (b.at <= t && !shown.has(b)) {
-              shown.add(b);
-              dusting.push(a.play(b.g, { opacity: [0, 1] }, { duration: 0.5 }));
-            }
-          }
-          // The sweep stops at SWEEP and end is later than SWEEP + TRAIL, so the trail has
-          // already shrunk to nothing by the time the loop ends.
-          if (t < end) requestAnimationFrame(frame);
-          else resolve();
-        };
-        requestAnimationFrame(frame);
-      });
-      trail.remove();
-      // The last stars are still settling; the lines start now and they're tidied up after.
-      const placing = Promise.all(appearing);
-      Promise.all(dusting).then(() => { for (const b of dustBands) b.g.style.opacity = ""; }, () => {});
-
-      // Constellation lines last: the agent visits each milestone and its figure draws out
-      // from it. About 1.2s in all, however many milestones there are.
-      const figs = qa<SVGGElement>("[data-c-fig]", figure);
-      const each = Math.min(0.5, 1.2 / Math.max(1, figs.length));
-      for (const g of figs) {
-        g.style.opacity = "";
-        const lines = qa<SVGLineElement>("[data-c-line]", g);
-        for (const l of lines) { l.style.strokeDasharray = "1"; l.style.strokeDashoffset = "1"; }
-        const star = q<SVGAElement>(`[data-c-node][data-tags][data-fig="${g.dataset.cFig}"]`, figure);
-        if (star) { const b = box(star); await a.move(b.x + b.w / 2, b.y + b.h / 2, Math.max(0.2, each * 0.6)); }
-        const label = q<HTMLElement>(`[data-c-label-for="${g.dataset.cFig}"]`, figure);
+    if (page === "work") {
+      // ---- A project page (ADR 0020): about 1.5s for its head ----
+      // The title is laid out with a frame (only outlined if it just morphed in from the home
+      // page), then the facts and links; each section builds as it comes into view.
+      const head = q("[data-work-head]")!;
+      const title = q("[data-work-title]", head);
+      const arrived = root.classList.contains("vt-in");
+      unit(head, [q("header"), head], async (c) => {
         await Promise.all([
-          ...lines.map((l) => a.play(l, { strokeDashoffset: ["1", "0"] }, { duration: each })),
-          label ? a.play(label, { opacity: [0, 1] }, { duration: each }) : null,
+          c.reveal(q("header .home")),
+          c.reveal(q("header nav")),
+          c.reveal(q("[data-back]", head)),
+          (async () => {
+            if (title) {
+              const b = box(title);
+              await c.spawn(b.x - FRAME_PAD, b.y - FRAME_PAD).frame(title, arrived ? "outline" : "rise", QUICK);
+            }
+            await Promise.all([
+              c.reveal(q("[data-summary]", head)),
+              quickFrame(c, q("[data-facts]", head), 60),
+              c.reveal(q("[data-links]", head), 150),
+            ]);
+          })(),
         ]);
+      }, () => root.classList.remove("hero-building"));
+      // Sections (and the footer) wait for the head, then build as they come into view.
+      const headUnit = units[0];
+      for (const h of qa(".body > h2")) {
+        const parts: HTMLElement[] = [];
+        for (let n = h.nextElementSibling; n && n.tagName !== "H2"; n = n.nextElementSibling) parts.push(n as HTMLElement);
+        unit(h, [h, ...parts], async (c) => {
+          await Promise.all([quickType(c, h), ...parts.map((p, i) => c.reveal(p, 80 + i * 60))]);
+        }, undefined, headUnit);
       }
-      for (const el of qa<Element & ElementCSSInlineStyle>("[data-c-label-for]", figure)) el.style.opacity = "";
-      for (const l of qa<SVGLineElement>("[data-c-line]", figure)) { l.style.strokeDasharray = ""; l.style.strokeDashoffset = ""; }
-      await placing;
-      for (const st of stars) { st.el.style.opacity = ""; st.el.style.transform = ""; }
-    };
+      unit(footer, [footer], (c) => quickFrame(c, q("p", footer!)), undefined, headUnit);
+    } else {
+      const figure = q("[data-constellation]")!;
+      const caption = q("figcaption", figure);
+      const skyNow = box(figure).y < top + vh;
 
-    // ---- Everything after the hero: built once the hero is done, as it scrolls into view ----
-    // (Sections already on screen start right after the hero.)
-    const units: [Element, Task[]][] = [];
-    const skyNow = onScreen(figure);
-    if (!skyNow) units.push([figure, [figureTask]]);
-    units.push([workLabel, [typeTask(workLabel, MS_PER_CHAR.label)]]);
-    for (const r of rows) units.push([r, [rowTask(r)]]);
-    const about = q("#about")!;
-    units.push([about, [typeTask(q("#about-title"), MS_PER_CHAR.label), typeTask(q("p", about), MS_PER_CHAR.body)]]);
-    const contact = q("#contact")!;
-    units.push([contact, [
-      typeTask(q("#contact-title"), MS_PER_CHAR.label),
-      ...qa("[data-contact]").map((li): Task => async (a) => {
-        for (const el of qa("[data-type]", li)) await a.type(el, MS_PER_CHAR.label);
-      }),
-    ]]);
-    const footer = q("[data-footer]")!;
-    const replay = q("[data-drag='replay']")!;
-    units.push([footer, [
-      typeTask(q("p", footer), MS_PER_CHAR.label),
-      async (a) => {
-        await a.drag(replay, boxes.get(replay)!, { dx: -120, dy: -40, s: 0.6 });
-        release(replay);
-      },
-    ]]);
-    d.pendingUnits = units.length;
-    const waiting = units.map(([el, tasks]) => ({ top: box(el).y, tasks }));
-    /** A section starts once its top is 15% into the screen, or visible at the page's end. */
-    const checkUnits = () => {
-      const bottom = scrollY + innerHeight;
-      const atEnd = bottom >= root.scrollHeight - 2;
-      // Top to bottom, so sections revealed together are built in reading order.
-      for (const u of [...waiting]) {
-        if (u.top < bottom - innerHeight * 0.15 || (atEnd && u.top < bottom)) {
-          waiting.splice(waiting.indexOf(u), 1);
-          d.pendingUnits--;
-          d.push(u.tasks);
-        }
+      // ---- The hero (ADR 0014): a crew of five working in parallel, about 2.5s in all ----
+      // Each agent appears near its first job; the starts are staggered slightly so it reads
+      // as a crew rather than everything at once.
+      const intro = q("[data-hero]")!;
+      const greeting = q(".greeting", intro), name = q("#intro-title"), tagline = q(".tagline", intro);
+      const home = q("header .home"), nav = q("header nav");
+      unit(intro, [q("header"), q(".text", intro), skyNow ? figure : null], async (c) => {
+        const near = (el: Element | null, dx: number, dy: number) => {
+          const b = el ? box(el) : { x: innerWidth / 2, y: top + vh / 2 };
+          return c.spawn(b.x + dx, b.y + dy, false);
+        };
+        await Promise.all([
+          // Sky: the constellation, untouched (ADR 0011); it starts on the center, no walk-in.
+          (async () => {
+            if (!skyNow) return;
+            const svg = box(q(".c-sky svg", figure)!);
+            await placeNodes(c, c.spawn(svg.x + svg.w / 2, svg.y + svg.h / 2, false), figure);
+          })(),
+          // The small lines around the name.
+          (async () => {
+            const a = near(greeting, -48, -24);
+            await a.frame(greeting, "rise");
+            await a.frame(tagline, "rise");
+          })(),
+          // The name: frame, then typed in.
+          (async () => {
+            await c.wait(150);
+            await near(name, -40, 40).frame(name, "type");
+          })(),
+          // The header: the home link, then the nav.
+          (async () => {
+            await c.wait(80);
+            const a = near(home, 40, 40);
+            await a.frame(home, "rise");
+            await a.frame(nav, "rise");
+          })(),
+          // The sky's caption.
+          (async () => {
+            if (!skyNow) return;
+            await c.wait(450);
+            await near(caption, 40, 32).frame(caption, "rise");
+          })(),
+        ]);
+      }, () => root.classList.remove("hero-building"));
+
+      // ---- Later sections (ADR 0019): each gets its own crew once it's settled into view,
+      // and is done in under a second. ----
+
+      // The constellation, if it starts below the first screen (short screens). It keeps its
+      // own timing (ADR 0011), the one exception to the one-second budget.
+      if (!skyNow) {
+        unit(figure, [figure], async (c) => {
+          const svg = box(q(".c-sky svg", figure)!);
+          await placeNodes(c, c.spawn(svg.x + svg.w / 2, svg.y + svg.h / 2, false), figure);
+          await quickFrame(c, caption);
+        });
       }
+
+      const workLabel = q("#work-title");
+      unit(workLabel, [workLabel], (c) => quickType(c, workLabel));
+      const rows = qa("[data-row]");
+      for (const row of rows) {
+        // Hairline right to left, so the cursor ends where the title starts; the title is
+        // typed while the summary and year fade in. About 0.7s.
+        unit(row, [row], async (c) => {
+          const b = box(row);
+          const a = c.spawn(b.x + b.w, b.y);
+          if (row === rows[rows.length - 1]) {
+            const bottom = rule(c, b.x, b.x + b.w, b.y + b.h - 1);
+            c.later(c.play(bottom, { transform: ["scaleX(0)", "scaleX(1)"] }, { duration: 0.25 }));
+          }
+          await a.draw(b.x + b.w, b.x, b.y, 0.25);
+          await Promise.all([
+            a.type(q("h3", row), MS_PER_CHAR.quick),
+            c.reveal(q(".blurb", row), 60),
+            c.reveal(q(".meta", row), 120),
+          ]);
+          row.dataset.built = "";
+        });
+      }
+
+      // After hours: the label typed and the counter faded in; then, as the strip comes in,
+      // a frame per card in view (one agent each, 30ms apart). Cards out of view just appear.
+      const head = q("[data-hours-head]");
+      unit(head, [head], async (c) => {
+        await Promise.all([quickType(c, q("#after-title")), c.reveal(q("[data-count]"), 80)]);
+      });
+      const strip = q("[data-strip]");
+      unit(strip, [strip], async (c) => {
+        const s = box(strip!);
+        const cards = qa("[data-card]", strip!);
+        const seen = cards.filter((card) => { const b = box(card); return b.w > 0 && b.x + b.w > s.x && b.x < s.x + s.w; });
+        for (const card of cards) if (!seen.includes(card)) card.style.opacity = "";
+        await Promise.all(seen.map((card, i) => quickFrame(c, card, i * 30)));
+      });
+
+      const contact = q("#contact");
+      unit(contact, [contact], async (c) => {
+        await Promise.all([
+          quickType(c, q("#contact-title")),
+          quickType(c, q("[data-addr]")),
+          (async () => {
+            await quickFrame(c, q("[data-copy]"), 80);
+          })(),
+          c.reveal(q("[data-links]"), 250),
+        ]);
+      });
+
+      unit(footer, [footer], async (c) => {
+        await Promise.all([quickFrame(c, q("p", footer!)), quickFrame(c, q("[data-replay]"), 80)]);
+      });
+    }
+
+    // ---- Running the units ----
+    const finished = () => {
+      if (units.every((u) => u.state === "done")) finish();
+    };
+    const complete = (u: Unit, instant: boolean) => {
+      if (u.state === "done") return;
+      if (instant) u.crew?.halt();
+      settle(d, u.roots);
+      u.el.removeAttribute("data-building");
+      u.el.setAttribute("data-made", "");
+      u.state = "done";
+      u.onDone?.();
+      finished();
+      if (!d.aborted) setTimeout(check); // units waiting on this one may start now
+    };
+    const start = (u: Unit) => {
+      u.state = "running";
+      u.el.setAttribute("data-building", "");
+      const c = (u.crew = new Crew(d));
+      // A section is done when its content has landed; its frames fade and its agents step
+      // away after that.
+      u.run(c)
+        .then(() => { complete(u, false); return c.wrapUp(); })
+        .catch((e) => {
+          if (e instanceof Aborted) return;
+          complete(u, true);
+          throw e;
+        });
+    };
+    let timer = 0, lastY = scrollY, lastT = performance.now();
+    /** A section starts once at least 30% of it (or of the screen, for a tall one) has been in
+        view for 120ms with the page (nearly) still, so a fast scroll doesn't set off everything
+        it passes. Sections scrolled past without stopping, and any still building when
+        scrolled past, appear finished at once. */
+    const check = () => {
+      if (d.aborted) return;
+      const now = performance.now(), vh = innerHeight;
+      const moving = now > lastT && (Math.abs(scrollY - lastY) / (now - lastT)) * 1000 > SETTLED;
+      lastY = scrollY; lastT = now;
+      let next = Infinity;
+      for (const u of units) {
+        if (u.state === "done") continue;
+        const r = u.el.getBoundingClientRect();
+        if (r.bottom <= 0) { complete(u, true); continue; }
+        if (u.state !== "waiting") continue;
+        const visible = Math.max(0, Math.min(r.bottom, vh) - Math.max(r.top, 0));
+        if (visible < Math.min(r.height, vh) * SHOWN) { u.seen = undefined; continue; }
+        if (moving) { u.seen = undefined; next = Math.min(next, DWELL); continue; } // look again once it stops
+        u.seen ??= now;
+        if (u.after && u.after.state !== "done") continue;
+        if (now - u.seen >= DWELL) start(u);
+        else next = Math.min(next, u.seen + DWELL - now);
+      }
+      clearTimeout(timer);
+      if (next < Infinity) timer = window.setTimeout(check, next + 5);
     };
     let ticking = false;
     const onScroll = () => {
       if (ticking) return;
       ticking = true;
-      requestAnimationFrame(() => { ticking = false; checkUnits(); });
+      requestAnimationFrame(() => { ticking = false; check(); });
     };
-
-    // ---- The hero (ADR 0014): a crew working in parallel, about 2.5s in all ----
-    // Each agent appears near its first job; the starts are staggered slightly so it reads
-    // as a crew rather than everything at once.
-    const after = (ms: number) => new Promise((r) => setTimeout(r, ms)).then(() => d.check());
-    const near = (a: Agent, el: Element | null, dx: number, dy: number) => {
-      const b = el ? box(el) : { x: vw / 2, y: top + vh / 2 };
-      a.enter(b.x + dx, b.y + dy, true);
-    };
-    const greeting = q(".intro .greeting"), name = q("#intro-title"), tagline = q(".intro .tagline");
-    const home = q("header .home"), nav = q("header nav");
-    const intros: (() => Promise<void>)[] = [
-      // Sky: the constellation, untouched (ADR 0011); it starts on the center, no walk-in.
-      async () => {
-        if (!skyNow) return;
-        const svg = box(q(".c-sky svg", figure)!);
-        a1.enter(svg.x + svg.w / 2, svg.y + svg.h / 2, true);
-        await placeNodes(a1);
-      },
-      // The small lines around the name.
-      async () => {
-        near(a2, greeting, -48, -24);
-        await a2.frame(greeting, "rise");
-        await a2.frame(tagline, "rise");
-      },
-      // The name: frame, then typed in.
-      async () => {
-        await after(150);
-        near(a3, name, -40, 40);
-        await a3.frame(name, "type");
-      },
-      // The header: the home link, then the nav.
-      async () => {
-        await after(80);
-        near(a4, home, 40, 40);
-        await a4.frame(home, "rise");
-        await a4.frame(nav, "rise");
-      },
-      // The sky's caption.
-      async () => {
-        if (!skyNow) return;
-        await after(450);
-        near(a5, caption, 40, 32);
-        await a5.frame(caption, "rise");
-      },
-    ];
-
-    /** After its intro, an agent takes tasks as they come, leaving when there's nothing to do. */
-    const work = async (a: Agent) => {
-      for (;;) {
-        if (a.present && d.queue.length === 0) await a.leave();
-        const task = await d.next();
-        if (!task) return;
-        if (!a.present) a.arrive();
-        d.busy++;
-        try { await task(a); } finally { d.busy--; d.settled(); }
-      }
-    };
-
-    try {
-      d.busy += intros.length;
-      const introsDone = intros.map((intro) => intro().finally(() => { d.busy--; d.settled(); }));
-      const everyone = d.agents.map((a, i) => introsDone[i].then(() => work(a)));
-      // The hero is done once every intro is and the frames have faded; then the rest of
-      // the page starts building as it comes into view.
-      await Promise.all(introsDone);
-      await d.whenIdle();
-      await Promise.all(d.trailing);
-      d.check();
-      root.classList.remove("hero-building");
-      try { sessionStorage.setItem("built", "1"); } catch {}
-      addEventListener("scroll", onScroll, { passive: true });
-      d.stopListening = () => removeEventListener("scroll", onScroll);
-      checkUnits();
-      await Promise.all(everyone);
-      finish();
-    } catch (e) {
-      if (!(e instanceof Aborted)) { finish(); throw e; }
-    }
+    addEventListener("scroll", onScroll, { passive: true });
+    d.cleanup.push(() => { removeEventListener("scroll", onScroll); clearTimeout(timer); });
+    start(units[0]); // the hero (or a project page's head) starts right away
+    check();
   }
 
   if (root.classList.contains("is-building")) build();

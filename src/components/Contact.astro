@@ -1,11 +1,27 @@
 ---
+// 03 / say hola (DESIGN.md §8, ADR 0017). The résumé link only exists once a public copy
+// is at public/resume.pdf (checked at build time).
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+const EMAIL = "jakejacobi2007@gmail.com";
+const hasResume = existsSync(join(process.cwd(), "public", "resume.pdf"));
+const links = [
+  { label: "linkedin", href: "https://www.linkedin.com/in/jakejacobi/" },
+  { label: "github", href: "https://github.com/jakejacobi14" },
+  ...(hasResume ? [{ label: "resume.pdf", href: "/resume.pdf" }] : []),
+];
 ---
 <section id="contact" class="contact" aria-labelledby="contact-title">
-  <h2 id="contact-title" class="label mono" data-type>Contact</h2>
-  <ul>
-    <li data-contact><span class="mono key" data-type>Email</span> <span data-type>Placeholder: your address</span></li>
-    <li data-contact><span class="mono key" data-type>GitHub</span> <span data-type>Placeholder: your profile</span></li>
-    <li data-contact><span class="mono key" data-type>LinkedIn</span> <span data-type>Placeholder: your profile</span></li>
+  <h2 id="contact-title" class="label mono" data-type>03 / say <span lang="es">hola</span></h2>
+  <div class="mail">
+    <a class="addr" href={`mailto:${EMAIL}`} data-addr data-type>{EMAIL}</a>
+    <button type="button" class="copy mono" data-copy={EMAIL} data-frame>copy</button>
+    <span class="visually-hidden" role="status" data-copy-status></span>
+  </div>
+  <ul class="links mono" data-links data-frame>
+    {links.map((l) => (
+      <li><a href={l.href} {...(l.href.startsWith("http") ? { rel: "noopener" } : {})}>{l.label}</a></li>
+    ))}
   </ul>
 </section>
 
@@ -13,9 +29,62 @@
   .contact {
     max-width: var(--page-max);
     margin: 0 auto;
-    padding: 0 var(--gutter) var(--space-9);
+    padding: var(--space-9) var(--gutter);
   }
-  .label { color: var(--muted); font-weight: 400; margin-bottom: var(--space-4); }
-  li { display: flex; gap: var(--space-4); align-items: baseline; padding: var(--space-1) 0; }
-  .key { color: var(--muted); min-width: 9ch; }
+  .label { color: var(--muted); font-weight: 400; margin-bottom: var(--space-5); }
+  .mail {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-2) var(--space-5);
+  }
+  .addr {
+    font-size: var(--text-contact);
+    font-weight: 500;
+    line-height: var(--leading-display);
+    letter-spacing: -0.01em;
+    text-decoration-color: transparent;
+  }
+  .addr:hover, .addr:focus-visible { text-decoration-color: currentColor; }
+  .copy {
+    padding: var(--space-1) var(--space-2);
+    color: var(--muted);
+    background: none;
+    border: 1px solid color-mix(in srgb, var(--muted) 35%, transparent);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: color var(--dur-micro) var(--ease);
+  }
+  .copy:hover { color: var(--accent); }
+  .links {
+    display: flex;
+    flex-wrap: wrap;
+    margin-top: var(--space-6);
+    color: var(--muted);
+  }
+  .links li + li::before { content: "·" / ""; margin: 0 var(--space-3); }
 </style>
+
+<script>
+  const btn = document.querySelector<HTMLButtonElement>("[data-copy]");
+  const status = document.querySelector<HTMLElement>("[data-copy-status]");
+  const addr = document.querySelector<HTMLElement>("[data-addr]");
+  let timer = 0;
+  btn?.addEventListener("click", async () => {
+    const email = btn.dataset.copy!;
+    try {
+      await navigator.clipboard.writeText(email);
+      btn.textContent = "copied";
+      if (status) status.textContent = "Email address copied.";
+    } catch {
+      // No clipboard access: select the address so it can be copied by hand.
+      if (addr) getSelection()?.selectAllChildren(addr);
+      if (status) status.textContent = "Couldn't copy. The address is selected.";
+    }
+    clearTimeout(timer);
+    timer = window.setTimeout(() => {
+      btn.textContent = "copy";
+      if (status) status.textContent = "";
+    }, 2000);
+  });
+</script>

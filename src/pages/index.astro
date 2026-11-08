@@ -3,17 +3,17 @@ import Base from "../layouts/Base.astro";
 import Header from "../components/Header.astro";
 import Intro from "../components/Intro.astro";
 import Work from "../components/Work.astro";
-import About from "../components/About.astro";
+import AfterHours from "../components/AfterHours.astro";
 import Contact from "../components/Contact.astro";
 import Footer from "../components/Footer.astro";
 ---
-<Base title="Jake Jacobi">
+<Base title="Jake Jacobi" build="home">
   <Header />
   <main id="main">
     <Intro />
     <Work />
-    <About />
+    <AfterHours />
     <Contact />
   </main>
-  <Footer />
+  <Footer replay />
 </Base>

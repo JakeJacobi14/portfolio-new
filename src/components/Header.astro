@@ -1,12 +1,17 @@
 ---
+// On the home page the nav scrolls to its sections; elsewhere it goes to them on home.
+const base = Astro.url.pathname === "/" ? "" : "/";
+const nav = [
+  { label: "Work", href: `${base}#work` },
+  { label: "After hours", href: `${base}#after-hours` },
+  { label: "Contact", href: `${base}#contact` },
+];
 ---
 <header class="header">
   <a class="home mono" href="/" data-frame>Jake Jacobi</a>
   <nav aria-label="Primary" data-frame>
     <ul class="mono">
-      <li><a href="#work">Work</a></li>
-      <li><a href="#about">About</a></li>
-      <li><a href="#contact">Contact</a></li>
+      {nav.map((n) => <li><a href={n.href}>{n.label}</a></li>)}
     </ul>
   </nav>
 </header>
@@ -32,3 +37,21 @@
   a { text-decoration-color: transparent; }
   a:hover, a:focus-visible { text-decoration-color: currentColor; }
 </style>
+
+<script>
+  // On the home page, the nav scrolls to its section without putting a #hash in the URL,
+  // so a refresh always starts at the top (ADR 0019).
+  const still = matchMedia("(prefers-reduced-motion: reduce)");
+  for (const link of document.querySelectorAll<HTMLAnchorElement>('header nav a[href^="#"]')) {
+    link.addEventListener("click", (e) => {
+      const target = document.getElementById(link.hash.slice(1));
+      if (!target) return;
+      e.preventDefault();
+      target.scrollIntoView({ behavior: still.matches ? "auto" : "smooth", block: "start" });
+      history.replaceState(history.state, "", location.pathname + location.search);
+      // Move focus along too, for keyboard and screen reader users.
+      if (!target.hasAttribute("tabindex")) target.setAttribute("tabindex", "-1");
+      target.focus({ preventScroll: true });
+    });
+  }
+</script>

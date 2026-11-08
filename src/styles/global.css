@@ -54,3 +54,16 @@ body { overflow-x: clip; } /* nothing (like the edge of the constellation sky) m
 /* body's overflow is handed to the viewport, which scripts can still scroll; main is full
    width and clips for real. */
 main { overflow-x: clip; }
+
+/* Page-to-page view transitions (ADR 0020): native, so every page still loads normally.
+   A project's title morphs between its row on the home page and its page. */
+@view-transition { navigation: auto; }
+::view-transition-group(*) { animation-duration: var(--dur-ui); animation-timing-function: var(--ease); }
+/* Both images of a morphing title scale with it, so it reads as one smooth zoom. */
+::view-transition-old(*), ::view-transition-new(*) { height: 100%; width: auto; }
+@media (prefers-reduced-motion: reduce) {
+  @view-transition { navigation: none; }
+}
+/* A title that just morphed in stays visible while the build-in outlines it. */
+.vt-in [data-work-title] { opacity: 1 !important; }
+section[tabindex="-1"]:focus { outline: none; } /* focus moved here by the nav */

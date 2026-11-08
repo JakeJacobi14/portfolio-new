@@ -2,8 +2,13 @@
 import "../styles/global.css";
 import BuildIn from "../components/BuildIn.astro";
 
-interface Props { title: string; description?: string }
-const { title, description = "Jake Jacobi, computer science student at Purdue." } = Astro.props;
+interface Props {
+  title: string;
+  description?: string;
+  /** Which build-in the page has, if any: the home page's, or a project page's (ADR 0020). */
+  build?: "home" | "work";
+}
+const { title, description = "Jake Jacobi, computer science student at Purdue.", build } = Astro.props;
 ---
 <!doctype html>
 <html lang="en">
@@ -20,21 +25,52 @@ const { title, description = "Jake Jacobi, computer science student at Purdue." 
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Schibsted+Grotesk:wght@400..700&display=swap"
     />
-    <!-- Runs before paint: decide whether the build-in plays.
-         Once per session on the live site; on every load in dev, so it's easy to review. -->
-    <script is:inline define:vars={{ everyLoad: import.meta.env.DEV }}>
+    <!-- Runs before paint (ADR 0019): where the page starts, and whether the build-in plays.
+         The build-in (home only) plays on every fresh load and refresh. It's skipped when
+         coming back from a project page: by the browser's back button, or by a link to a
+         section (like "back to work", /#work). -->
+    <script is:inline define:vars={{ build: !!build }}>
       (() => {
-        // A reload always starts at the top; links to a section (/#work) still go there.
+        const nav = performance.getEntriesByType("navigation")[0];
+        const back = nav?.type === "back_forward";
+        let fromWork = false;
+        try {
+          const ref = new URL(document.referrer);
+          fromWork = ref.origin === location.origin && ref.pathname.startsWith("/work/");
+        } catch {}
+        // Scroll positions are handled here: the browser doesn't restore them on its own.
         if ("scrollRestoration" in history) history.scrollRestoration = "manual";
-        if (!location.hash) scrollTo(0, 0);
-        else addEventListener("DOMContentLoaded", () => {
-          // With manual restoration, a reload no longer goes back to the section by itself.
-          document.getElementById(decodeURIComponent(location.hash.slice(1)))?.scrollIntoView();
-        });
+        const key = "scroll:" + location.pathname;
+        addEventListener("pagehide", () => { try { sessionStorage.setItem(key, String(scrollY)); } catch {} });
+        if (location.hash) {
+          // A link to a section: go there, then drop the hash so a refresh starts at the top.
+          addEventListener("DOMContentLoaded", () => {
+            document.getElementById(decodeURIComponent(location.hash.slice(1)))?.scrollIntoView();
+            history.replaceState(history.state, "", location.pathname + location.search);
+          });
+        } else if (back) {
+          // Back (or forward) to this page: return to where it was left.
+          let y = 0;
+          try { y = Number(sessionStorage.getItem(key)) || 0; } catch {}
+          addEventListener("pagereveal", () => scrollTo(0, y), { once: true }); // before the first frame
+          addEventListener("DOMContentLoaded", () => scrollTo(0, y));
+          addEventListener("load", () => scrollTo(0, y), { once: true }); // after fonts and images settle
+        } else {
+          scrollTo(0, 0); // a fresh load or a refresh starts at the top
+        }
         const d = document.documentElement;
-        let seen = false;
-        try { seen = !everyLoad && sessionStorage.getItem("built") === "1"; } catch {}
-        if (!matchMedia("(prefers-reduced-motion: reduce)").matches && !seen) {
+        // Arriving with a view transition (a project title morphing in, ADR 0020).
+        // The build-in waits for the transition to finish (window.__revealed, below).
+        window.__revealed = new Promise((resolve) => {
+          addEventListener("pagereveal", (e) => {
+            if (!e.viewTransition) return resolve();
+            d.classList.add("vt-in");
+            e.viewTransition.ready.catch(() => {}); // a transition the browser skips isn't an error
+            e.viewTransition.finished.then(resolve, resolve);
+          }, { once: true });
+        });
+        const skip = !build || back || (!!location.hash && fromWork);
+        if (!matchMedia("(prefers-reduced-motion: reduce)").matches && !skip) {
           d.classList.add("is-building");
           // Fail-safe: never leave content hidden if the script doesn't run.
           window.__buildFailsafe = setTimeout(() => d.classList.remove("is-building"), 3500);
@@ -42,9 +78,9 @@ const { title, description = "Jake Jacobi, computer science student at Purdue." 
       })();
     </script>
   </head>
-  <body>
+  <body data-build={build}>
     <a class="skip-link mono" href="#main">Skip to content</a>
     <slot />
-    <BuildIn />
+    {build && <BuildIn />}
   </body>
 </html>
