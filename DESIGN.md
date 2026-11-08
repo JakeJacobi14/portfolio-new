@@ -63,11 +63,17 @@ Dark only. No light mode for now.
 ## 5. Typography
 - Display and body: **Schibsted Grotesk** (Google Fonts, variable 400 to 700)
 - Mono (labels, metadata, cursor tags): **IBM Plex Mono** (Google Fonts, 400 and 500)
-- Scale: ratio 1.25 from 16px: `13 / 16 / 20 / 25 / 31 / 39 / 49` px
-  (tokens `--text-xs` through `--text-3xl`)
+- Scale: ratio 1.25 from 16px: `13 / 16 / 20 / 25 / 31 / 39 / 49 / 61 / 76 / 95` px
+  (tokens `--text-xs` through `--text-6xl`)
+- Display: the name in the hero is the only big element on the page,
+  `clamp(49px, 6vw + 16px, 95px)` (`--text-display`), so 49px on phones and 95px on a
+  wide desktop. Everything else in the hero is small (ADR 0013).
+- Cyrillic: Schibsted Grotesk has none, so any Cyrillic text (the "сайн уу" greeting) is
+  set in IBM Plex Mono, which has it. The whole greeting line is mono so it doesn't mix
+  typefaces mid-line.
 - Weights: 400 body, 500 headings. Line height 1.5 body, 1.1 display.
-- One step below the scale for constellation milestone labels only: `10px` (`--text-2xs`),
-  IBM Plex Mono, letter-spaced `0.12em` (`--tracking-label`).
+- One step below the scale for constellation milestone labels and the build-in's frame size
+  labels only: `10px` (`--text-2xs`), IBM Plex Mono, letter-spaced `0.12em` (`--tracking-label`).
 
 ## 6. Layout & spacing
 - Grid: none. A single left-aligned column, except the intro: from 960px up it is two
@@ -81,24 +87,36 @@ Dark only. No light mode for now.
 
 ## 7. Motion
 - One signature moment (the build-in). Everything else is quiet: fades and small offsets only.
-- Durations: `150ms` micro (hover, focus), `300ms` UI. The build-in takes as long as the
-  first screen needs: measured about 10s on a 1440×900 desktop and 7s on a phone (page load
-  to guides faded). Later sections take 1 to 4s each as they appear. Cursor moves take 0.3s to 0.7s depending on distance; lines 0.35s to 0.6s.
+- Durations: `150ms` micro (hover, focus), `300ms` UI. The hero builds in about 2.5s;
+  measured 2.9s on a 1440×900 desktop (the constellation is the last to finish) and 2.7s on
+  a phone. Later sections take 1 to 4s each as they appear. Cursor moves take 0.3s to 0.7s depending on distance; lines 0.35s to 0.6s.
 - Easing: one curve everywhere, `cubic-bezier(0.2, 0, 0, 1)` (`--ease`)
-- Build-in: 4 unlabeled cursors (custom SVG, `--accent`) make everything on the page.
-  Three kinds of action:
+- Build-in: 5 unlabeled cursors (custom SVG, `--accent`) make everything on the page.
+  Four kinds of action:
+  - **Frame** (the hero's text, ADR 0014): like a design tool. The agent drags out a text
+    frame from the element's top-left corner: a 1px `--accent` rectangle, 3px outside the
+    text, with small square corner handles (`--bg` fill, `--accent` border). It grows from
+    small to full size in 0.45s with a size label under it (`W 510 · H 105`, `--text-2xs`
+    mono, `--accent`) that fades out in 0.4s. Then the text sets in: the name is typed
+    behind a caret, the smaller lines fade in and rise 4px (0.3s). The frame fades (0.3s)
+    once the text lands.
   - **Type:** text appears one character at a time behind a 2px `--accent` caret, at a
-    slightly uneven, human pace (display about 70ms per character, labels about 35ms, body
+    slightly uneven, human pace (display about 45ms per character, labels about 35ms, body
     about 17ms).
-  - **Draw:** guide lines and hairlines grow along with the cursor that draws them.
-  - **Drag and resize:** boxes (nav, central element, Replay button) appear small and out of place with a
-    1px `--accent` selection outline, get dragged to their spot, then resized from the
+  - **Draw:** hairlines grow along with the cursor that draws them.
+  - **Drag and resize:** the Replay button appears small and out of place with a
+    1px `--accent` selection outline, gets dragged to its spot, then resized from the
     bottom-right corner to full size.
-  The first screen is built on load; guides fade when it's done. Every later section starts
+  The hero is built on load by a crew working in parallel, starts staggered by up to 0.45s,
+  each agent appearing near its first job: one for the greeting and tagline, one for the
+  name, one for the header (home link, then nav), one for the sky's caption, and one for the
+  constellation (it appears on the sky's center and starts the sweep at once). Every later
+  section, including any already on screen, starts
   empty and is built when it scrolls into view (its top 15% into the screen, or visible at
   the end of the page): agents come in from the side, build it, and leave. Tasks go to
   whichever agent is free first.
-  Plays once per browser session (on every load in dev, for reviewing). A "Skip" button
+  Plays once per browser session; later loads in the same session show the finished page
+  (on every load in dev, for reviewing). Replay always replays it. A "Skip" button
   (and Esc) ends it at any point, and a "Replay build" control sits in the footer.
 - `prefers-reduced-motion: reduce` → skip the build-in, show the finished page, hide replay.
 - Library: Motion (`motion/mini`), see ADR 0004.
@@ -108,6 +126,14 @@ Dark only. No light mode for now.
 
 ## 8. Pages & sections
 - Home: intro (with a central element), selected work, about, contact
+- Hero text (ADR 0013), one big element and everything else small:
+  - "сайн уу, I'm": `--text-xs` mono, `--muted`; "сайн уу" has `lang="mn"` and a tooltip
+    on hover or focus, "sain uu · hi, in Mongolian" (same surface as the star tooltip).
+  - "Jake Jacobi": `--text-display`, weight 500, the `h1`.
+  - "software engineer · building software that sees, thinks & moves": `--text-xs` mono,
+    `--muted`.
+  - Sky caption: "every star is a commit to this site. oldest at the center."
+  The minors and Oregon → Indiana move to /about.
 - Central element: the **commit constellation**, drawn as a night sky (ADR 0008, ADR 0009,
   ADR 0011, ADR 0012), in the intro's right column with no frame. Every star is a real commit to this repo (`npm run commits` →
   `src/data/commits.json`). Feel: Eleanor Lutz's constellation maps. Tiny points, a few
@@ -183,6 +209,7 @@ Goal: clean, and not obviously vibe-coded. Many of these come from a list of com
 
 **Motion**
 - No hover animation on everything. Hover states are reserved for things you can click.
+  Exception: the "сайн уу" greeting shows a translation tooltip on hover or focus.
 - No animation that delays reading content for more than ~2 seconds unless it can be skipped.
   The build-in is the one exception: skippable, once per session, and off for reduced motion.
 
