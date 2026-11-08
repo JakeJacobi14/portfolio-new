@@ -638,5 +638,16 @@
     "insertions": 32,
     "deletions": 26,
     "tags": []
+  },
+  {
+    "hash": "2851eccfa0e25409c0b98c8175cd1f381a2c7993",
+    "short": "2851ecc",
+    "date": "2026-11-08T13:48:56-05:00",
+    "subject": "feat: add résumé, linked from the contact section",
+    "type": "feat",
+    "files": 1,
+    "insertions": 0,
+    "deletions": 0,
+    "tags": []
   }
 ]
