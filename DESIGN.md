@@ -72,6 +72,8 @@ Dark only. No light mode for now.
   set in IBM Plex Mono, which has it. The whole greeting line is mono so it doesn't mix
   typefaces mid-line.
 - Weights: 400 body, 500 headings. Line height 1.5 body, 1.1 display.
+- Contact email (home §03): `clamp(25px, 5vw + 8px, 49px)` (`--text-contact`), Schibsted
+  500, so the address fits one line on a phone.
 - One step below the scale for constellation milestone labels and the build-in's frame size
   labels only: `10px` (`--text-2xs`), IBM Plex Mono, letter-spaced `0.12em` (`--tracking-label`).
 
@@ -88,17 +90,28 @@ Dark only. No light mode for now.
 - Max widths: text `65ch`, page `1120px`
 - Side gutter: 16px under 640px, 32px above
 - Corner radius: `0` (token `--radius`)
+- After hours cards (ADR 0018): three widths, `224 / 240 / 288px` (`--card-s`, `--card-m`,
+  `--card-l`), aspect 4:5, 24px apart, nudged up or down by 0, 12 or 24px so the strip
+  feels hand-placed. On phones they're scaled to 0.6 (about 134 / 144 / 173px) and the
+  strip scrolls sideways with snap points (2 to 3 cards visible). On desktop the section
+  is at least one screen tall (`100svh`), its label, counter and strip centered in it.
 - Lines: 1px hairlines in `--muted` at reduced opacity separate list rows. No boxes or cards.
   The central element's frame uses the same hairline.
 
 ## 7. Motion
 - One signature moment (the build-in). Everything else is quiet: fades and small offsets
-  only, plus two faint sky details that start after the build-in (§8, ADR 0016).
-- Durations: `150ms` micro (hover, focus), `300ms` UI. The hero builds in about 2.5s;
+  only, plus two faint sky details that start after the build-in (§8, ADR 0016) and the
+  after hours strip's card swap (§8, ADR 0018).
+- Durations: `150ms` micro (hover, focus), `300ms` UI. The after hours star fields come
+  back slowly after a hover: the photo lingers `2s` (`--dur-linger`), then the stars fade
+  in over `1.2s` (`--dur-fade-back`). The hero builds in about 2.5s;
   measured 2.9s on a 1440×900 desktop (the constellation is the last to finish) and 2.7s on
-  a phone. Later sections take 1 to 4s each as they appear. Cursor moves take 0.3s to 0.7s depending on distance; lines 0.35s to 0.6s.
+  a phone. Each later section starts the moment it enters the screen and is done within
+  about 0.8s (measured 0.23 to 0.8s). Hero cursor moves take 0.3s to 0.7s depending on
+  distance; in later sections 0.1s to 0.2s.
 - Easing: one curve everywhere, `cubic-bezier(0.2, 0, 0, 1)` (`--ease`)
-- Build-in: 5 unlabeled cursors (custom SVG, `--accent`) make everything on the page.
+- Build-in: unlabeled cursors (custom SVG, `--accent`) make everything on the page: five
+  for the hero, plus a crew for each later section as it appears (ADR 0019).
   Four kinds of action:
   - **Frame** (the hero's text, ADR 0014): like a design tool. The agent drags out a text
     frame from the element's top-left corner: a 1px `--accent` rectangle, 3px outside the
@@ -108,23 +121,39 @@ Dark only. No light mode for now.
     behind a caret, the smaller lines fade in and rise 4px (0.3s). The frame fades (0.3s)
     once the text lands.
   - **Type:** text appears one character at a time behind a 2px `--accent` caret, at a
-    slightly uneven, human pace (display about 45ms per character, labels about 35ms, body
-    about 17ms).
+    slightly uneven, human pace (the hero's name about 45ms per character; titles and
+    labels in later sections about 12ms).
   - **Draw:** hairlines grow along with the cursor that draws them.
-  - **Drag and resize:** the Replay button appears small and out of place with a
-    1px `--accent` selection outline, gets dragged to its spot, then resized from the
-    bottom-right corner to full size.
+  - **Fade:** longer text in later sections (summaries, counters, links) fades in and
+    rises 4px (0.3s) while the title is typed.
   The hero is built on load by a crew working in parallel, starts staggered by up to 0.45s,
   each agent appearing near its first job: one for the greeting and tagline, one for the
   name, one for the header (home link, then nav), one for the sky's caption, and one for the
-  constellation (it appears on the sky's center and starts the sweep at once). Every later
-  section, including any already on screen, starts
-  empty and is built when it scrolls into view (its top 15% into the screen, or visible at
-  the end of the page): agents come in from the side, build it, and leave. Tasks go to
-  whichever agent is free first.
-  Plays once per browser session; later loads in the same session show the finished page
-  (on every load in dev, for reviewing). Replay always replays it. A "Skip" button
-  (and Esc) ends it at any point, and a "Replay build" control sits in the footer.
+  constellation (it appears on the sky's center and starts the sweep at once).
+  Later sections (ADR 0019) each get their own crew once at least 30% of the section (or of
+  the screen, for a tall one) has been in view for 120ms with the page nearly still
+  (scrolling slower than 1200px/s), and never wait for another section: each work row (hairline right to left, title typed,
+  summary and year fade in), the work label, the after hours label and counter, the strip
+  (a frame per card in view, one agent each, 30ms apart; frames grow in 0.35s and the card
+  rises in 0.25s), say hola (label and address typed, copy button framed, links fade in)
+  and the footer. A section counts as done when its content has landed; its frames fade
+  and its agents step away after. The constellation, when it starts below the first screen
+  (short screens), keeps its own timing.
+  Sections scrolled past without stopping appear finished at once (so does one scrolled
+  past while still building); the section you stop on always animates, even after a fast
+  scroll.
+  Project pages (ADR 0020) have their own short build-in, about 1.5s: once the title has
+  arrived (morphed in from its row, or laid out with a frame on a direct visit), its frame
+  is drawn around it, then the summary, facts and links; then each section (heading typed,
+  body fading in) builds as it comes into view, under the same rules.
+- Page transitions (ADR 0020): native cross-document view transitions. A project's title
+  morphs between its row on the home page and its page's header, both ways (`--dur-ui`,
+  `--ease`); the rest of the page cross-fades. None for reduced motion.
+  Plays on every fresh load and refresh. Skipped when coming back from a project page: by
+  the browser's back button (which also returns to where you were), or by a link to a
+  section from a project page ("back to work", `/#work`). Only the home page builds itself.
+  Replay always replays it. A "Skip" button (and Esc) ends it at any point, and a "Replay
+  build" control sits in the footer.
 - `prefers-reduced-motion: reduce` → skip the build-in, show the finished page, hide replay.
 - Library: Motion (`motion/mini`), see ADR 0004.
 - Twinkle (constellation only, §8): about 1 in 8 stars, chosen from the commit hash, slowly
@@ -132,7 +161,11 @@ Dark only. No light mode for now.
   `4s`, `--twinkle-max` `8s`), eased with `--ease`, alternating. Off for reduced motion.
 
 ## 8. Pages & sections
-- Home: intro (with a central element), selected work, about, contact
+- Home (ADR 0017), one scroll: hero, `01 / selected work`, `02 / after hours`,
+  `03 / say hola`, footer. Section labels are `--text-xs` mono, `--muted`, lowercase, with
+  a two-digit number. Nav: Work, After hours, Contact scroll smoothly to their sections
+  without adding a `#hash` to the URL, so a refresh starts at the top (ADR 0019). From other
+  pages they go to `/#work` etc.; the hash is dropped once the page is there.
 - Hero text (ADR 0013), one big element and everything else small:
   - "сайн уу, I'm": `--text-xs` mono, `--muted`; "сайн уу" has `lang="mn"` and a tooltip
     on hover or focus, "hello, in Mongolian" (same surface as the star tooltip).
@@ -197,7 +230,59 @@ Dark only. No light mode for now.
     visible; never during the build-in; none for reduced motion.
   - **Accessible:** a group label describing the image, a link per star with its hash, date
     and subject, and a visually hidden list of the 10 most recent commits.
-- Project pages (case studies): problem → process → outcome → what I'd change
+- **01 / selected work:** one row per project (from the `work` collection, by `order`):
+  name, a one-line summary, the year in mono. The whole row is one link to `/work/[slug]`.
+  Hover or focus: the name turns `--accent` and a "→" moves 4px right (`--dur-micro`);
+  focus also gets the usual focus ring. Hairlines between rows as before.
+- **Project pages** (`/work/[slug]`, ADR 0017): title, then role · team · year · stack in
+  mono, links, then problem → what I did → result → what I'd change. Facts come only from
+  the résumé; anything else says TODO until written. "← back to work" returns to `/#work`.
+  Years are absolute ("2026", never "present").
+- **02 / after hours** (ADR 0018): photos from the `after-hours` collection, with a mono
+  counter computed from the data ("8 frames · 1 country"). The counter is a link to
+  `/after-hours`, every photo at once (below). Photos are in a shuffled order (fixed, not
+  per visit), and each caption is the place from its folder: city, region or US state.
+  - **Star field:** each card shows its photo as tiny points of light on `--bg`: sampled
+    from a small copy of the photo by brightness, 1px, colored `--star-warm`, `--star-cool`
+    or `--star` by the pixel's warmth, opacity following brightness. Caption under it in
+    `--text-2xs` mono, `--muted`: `№ 012 · lima, peru` (number from `order`).
+  - **Hover / focus:** the real photo crossfades in (`--dur-ui`). When the pointer or focus
+    leaves, the photo stays for `--dur-linger` (2s), then the star field fades back over
+    `--dur-fade-back` (1.2s), so moving across the strip leaves a trail of photos that
+    slowly turn back into stars. Click opens a lightbox
+    (`<dialog>`): the full photo and caption on `--bg`, its position (`03 / 08`), ← and →
+    buttons ("previous photo" / "next photo") and the arrow keys to step through every
+    photo (wrapping around), and a mono "close". Esc closes; focus goes back to the card of
+    the photo you ended on, scrolled into view; if the lightbox was opened by mouse or
+    touch, that card shows its star field again until hovered.
+  - **The strip** holds every photo and scrolls sideways (about four cards fit on desktop), with
+    snap points on touch only; a trackpad glides freely with its momentum: trackpad,
+    shift + mouse wheel, mouse drag (`grab` / `grabbing` cursor;
+    snaps to the nearest card on release; a drag never opens a photo), swipe, and ← / → by
+    one card when the strip is focused (labelled "after hours photos, scroll
+    horizontally"). A plain mouse wheel still scrolls the page. No buttons or position.
+  - **Edge fades:** each side of the strip fades into the background over the gutter plus
+    12px, only while there's more to scroll that way (none on the left at the start, none on
+    the right at the end), easing in and out over `--dur-ui` as you scroll. A focused card is
+    scrolled clear of the fades, so its outline is never cut off.
+  - **The agent** (desktop, mouse): every 6s it takes hold of a card and pulls the strip
+    one card along (0.65s, `--ease`), and at the end pushes it back to the start. Paused
+    while the pointer or focus is in the strip, while it's offscreen, while the tab is
+    hidden, while the lightbox is open, during the build-in, and for 15s after any manual
+    scroll or use; if you start scrolling mid-pull it lets go at once. None on touch or for
+    reduced motion.
+  - **Reduced motion or no JS:** a static strip of plain photos.
+  - **`/after-hours`:** every photo at once as plain photos (no star field), in strip
+    order: a collage of four columns (three under 900px, two under 480px), each photo at its
+    own shape with its `№` caption under it, 24px apart. A mono "← back to after hours"
+    returns to `/#after-hours`; the title and counter sit above. No build-in.
+  - **Images** go through Astro's image pipeline (WebP); the re-encode drops EXIF and GPS,
+    and the originals are never published.
+- **03 / say hola:** the email address large (`--text-contact`) with a "copy" button (mono;
+  says "copied" for 2s, announced politely to screen readers), then small mono links:
+  linkedin · github · resume.pdf. The résumé link only appears when `public/resume.pdf`
+  exists at build time.
+- **404:** the site's header, one line, and a link home.
 - This site's own case study (built from `docs/`)
 
 ## 9. Never
@@ -208,7 +293,8 @@ Goal: clean, and not obviously vibe-coded. Many of these come from a list of com
 - No gradients (harsh or soft blobs), rainbow coloring, neon colors, or purple-on-black.
   Exceptions: the soft halo on the brightest constellation stars (§8), a fade of the
   star's own color, and the radial mask that fades the sky's edge. (Added 2026-11-07,
-  ADR 0009, ADR 0012.)
+  ADR 0009, ADR 0012.) The after hours strip's edge fades, a mask that fades the strip
+  into the background (§8, added 2026-11-08).
 - No pure white `#fff` or pure black `#000` backgrounds. Use tinted neutrals.
 
 **Surfaces**
@@ -233,7 +319,8 @@ Goal: clean, and not obviously vibe-coded. Many of these come from a list of com
   Exception: the "сайн уу" greeting shows a translation tooltip on hover or focus. The
   sky's stars noticing the pointer (§8) is ambient, not a hover state, and stays subtle.
 - No animation that delays reading content for more than ~2 seconds unless it can be skipped.
-  The build-in is the one exception: skippable, once per session, and off for reduced motion.
+  The build-in is the one exception: skippable, about 2.5s for the hero and under a second
+  per later section, and off for reduced motion.
 
 **Copy** (everything a visitor reads: the site and the case study built from `docs/`)
 - No em dashes. No "it's not X, it's Y" constructions.

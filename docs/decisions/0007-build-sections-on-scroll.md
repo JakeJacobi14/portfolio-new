@@ -1,7 +1,7 @@
 # 0007 — Build later sections as they scroll into view
 
 **Date:** 2026-11-05
-**Status:** accepted
+**Status:** accepted; the shared task queue is replaced by per-section crews in [0019](0019-build-per-section-and-every-load.md)
 
 ## Context
 In v1 (ADR 0006) the agents built only the first screen, and everything below it was

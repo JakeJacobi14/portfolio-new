@@ -65,3 +65,53 @@ checkpoint after each phase.
 - Set `VERCEL_DEEP_CLONE=true` for Preview and rerun the test; pick deep clone or a
   pre-push hook, and record it.
 - More tags as milestones, so the sky gets more constellations.
+
+---
+
+## Later the same day: hero v4
+
+**Milestone:** build
+
+### What I set out to do
+Give the hero a clear hierarchy (one big element, everything else small), and have the
+agents lay out its text like a design tool, all in about 2.5s, without touching the
+constellation's build-in.
+
+### What actually happened
+- New hero text: "сайн уу, I'm" small and muted with a translation tooltip, "Jake Jacobi"
+  as the only big element (49px on phones to 95px), a small mono tagline, and a new sky
+  caption. The minors / Oregon → Indiana paragraph is gone from the home page (it goes to
+  /about).
+- Schibsted Grotesk has no Cyrillic, so Claude stopped and asked before changing anything.
+  The whole greeting is now IBM Plex Mono.
+- The first screen's build is now text frames: five agents each drag out a selection
+  rectangle with corner handles and a "W · H" label, then the text sets in (the name typed,
+  the rest fading up). It went from about 10s to 2.9s on desktop and 2.7s on a phone.
+- My spec conflicted with itself: the constellation alone took about 3.4s, so "don't change
+  its timing" and "everything in 2.5s" couldn't both hold. We dropped only the sky agent's
+  walk-in. It now lands a bit over 2.5s, with the sky finishing last.
+- My tooltip copy had an em dash, which DESIGN.md bans; it uses a middle dot now.
+- I asked for the agent count in "the control bar" to match, but the control bar was
+  removed with this morning's revert. Nothing to update besides `BuildIn.astro` and
+  DESIGN.md.
+- `npm run build` refreshed `commits.json` and it slipped into the feature commit; split
+  into its own chore commit before pushing.
+
+### Decisions made
+- [0013](../decisions/0013-hero-text-hierarchy.md): hero hierarchy, a 95px display size,
+  mono greeting for Cyrillic.
+- [0014](../decisions/0014-hero-build-text-frames.md): text-frame build-in with five
+  agents; the constellation starts on its center.
+
+### What surprised me / what I learned
+- A short spec can still contradict itself. Measuring the real timings first turned the
+  conflict into a quick choice instead of a surprise later.
+
+### Screenshots
+- `../screenshots/2026-11-07-hero-v4-desktop.png`, `-mobile`
+- `../screenshots/2026-11-07-hero-v4-buildin-0.7s.png`, `-1.3s` (frames mid-build)
+
+### Next
+- Write /about with the minors and Oregon → Indiana.
+- Watch the build a few times and decide whether 2.9s feels right or the sky should start
+  even sooner.
