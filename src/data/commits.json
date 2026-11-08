@@ -484,5 +484,137 @@
     "insertions": 0,
     "deletions": 0,
     "tags": []
+  },
+  {
+    "hash": "dabd56a027f31d331b7e1a61a1c63bfe8ba7b458",
+    "short": "dabd56a",
+    "date": "2026-11-07T21:32:03-05:00",
+    "subject": "docs: ADR 0013 hero text hierarchy, ADR 0014 text-frame build-in; DESIGN.md §5, §7, §8, §9",
+    "type": "docs",
+    "files": 3,
+    "insertions": 133,
+    "deletions": 15,
+    "tags": []
+  },
+  {
+    "hash": "8545ba5da7f0377d62ab45f53b4414fd3ffc15a4",
+    "short": "8545ba5",
+    "date": "2026-11-07T21:32:07-05:00",
+    "subject": "feat: hero with one big name, mono greeting with tooltip, and a text-frame build-in by five agents",
+    "type": "feat",
+    "files": 5,
+    "insertions": 221,
+    "deletions": 79,
+    "tags": []
+  },
+  {
+    "hash": "f1c87e7126bac8b152e62b8712d4c7b0374c671e",
+    "short": "f1c87e7",
+    "date": "2026-11-07T21:32:39-05:00",
+    "subject": "docs: screenshots of hero v4 and two frames of its build-in",
+    "type": "docs",
+    "files": 4,
+    "insertions": 0,
+    "deletions": 0,
+    "tags": []
+  },
+  {
+    "hash": "a783c98bb04253a99477203ce70ea6262354f7fb",
+    "short": "a783c98",
+    "date": "2026-11-07T21:58:23-05:00",
+    "subject": "docs: ADR 0015 full-screen hero, ADR 0016 sky ambient details; DESIGN.md §5–§9",
+    "type": "docs",
+    "files": 3,
+    "insertions": 114,
+    "deletions": 7,
+    "tags": []
+  },
+  {
+    "hash": "d79473e10e0258f65c169d3270260eb8bfefaef0",
+    "short": "d79473e",
+    "date": "2026-11-07T21:58:23-05:00",
+    "subject": "feat: full-screen hero with a larger sky, stars that notice the pointer, an occasional shooting star",
+    "type": "feat",
+    "files": 8,
+    "insertions": 190,
+    "deletions": 15,
+    "tags": []
+  },
+  {
+    "hash": "2d1600088b1f271a4cc0888cd7b217a07dbb4d43",
+    "short": "2d16000",
+    "date": "2026-11-07T21:58:37-05:00",
+    "subject": "docs: screenshots of hero v5, both phone stack orders, and a shooting star",
+    "type": "docs",
+    "files": 5,
+    "insertions": 0,
+    "deletions": 0,
+    "tags": []
+  },
+  {
+    "hash": "a07b0fd3c8e12692be0df4a85dd733a5c760bcfd",
+    "short": "a07b0fd",
+    "date": "2026-11-08T13:33:31-05:00",
+    "subject": "feat: content collections for projects and after hours photos",
+    "type": "feat",
+    "files": 8,
+    "insertions": 212,
+    "deletions": 19,
+    "tags": []
+  },
+  {
+    "hash": "01e61ee754a40aaa3a8ad165987b5075577ae70d",
+    "short": "01e61ee",
+    "date": "2026-11-08T13:33:32-05:00",
+    "subject": "feat: 63 after hours photos, resized with metadata stripped",
+    "type": "feat",
+    "files": 126,
+    "insertions": 315,
+    "deletions": 0,
+    "tags": []
+  },
+  {
+    "hash": "37a8cf55d203d62464caef7de6d87436e021936e",
+    "short": "37a8cf5",
+    "date": "2026-11-08T13:33:32-05:00",
+    "subject": "feat: after hours strip of star-field photos and an /after-hours collage",
+    "type": "feat",
+    "files": 3,
+    "insertions": 727,
+    "deletions": 0,
+    "tags": []
+  },
+  {
+    "hash": "9c9d78ae8fd78b61db308cbc40cdbed8e6d45eae",
+    "short": "9c9d78a",
+    "date": "2026-11-08T13:33:32-05:00",
+    "subject": "feat: one-page home, project pages with view transitions, 404, build-in per section",
+    "type": "feat",
+    "files": 13,
+    "insertions": 940,
+    "deletions": 511,
+    "tags": []
+  },
+  {
+    "hash": "ec9810f493cec94bd314c42f83e5b671c8f0383a",
+    "short": "ec9810f",
+    "date": "2026-11-08T13:33:32-05:00",
+    "subject": "docs: ADRs 0017-0020, DESIGN.md for structure and after hours, journal",
+    "type": "docs",
+    "files": 8,
+    "insertions": 470,
+    "deletions": 22,
+    "tags": []
+  },
+  {
+    "hash": "d6731025a91fa0bf3196a86bb6076ba07f20a475",
+    "short": "d673102",
+    "date": "2026-11-08T13:33:33-05:00",
+    "subject": "docs: screenshots of the site structure and after hours",
+    "type": "docs",
+    "files": 25,
+    "insertions": 0,
+    "deletions": 0,
+    "tags": []
   }
 ]
