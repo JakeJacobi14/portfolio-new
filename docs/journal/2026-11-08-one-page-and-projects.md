@@ -99,3 +99,70 @@ page per project, from content collections.
 ### Screenshots
 - `../screenshots/2026-11-08-structure-v5-desktop.png`, `-mobile`, `-work-desktop`, `-work-mobile`
 - `../screenshots/2026-11-08-structure-v5-strip-fades.png`, `-title-morph`, `-work-built`
+
+---
+
+## Evening: real photos, a collage page, a click star, and going live
+
+**Milestone:** build
+
+### What I set out to do
+Replace the eight placeholder photos in after hours with my own, fix what came up, and get
+everything pushed and live.
+
+### What actually happened
+- I dropped 66 unsorted photos in a folder and asked Claude to sort them by GPS. None had
+  usable GPS (no tags, or zeroed to 0,0), so it sorted by looking at each photo, helped by
+  the EXIF time zone offset (+05:45 is only used in Nepal). It placed 38, put 27 in
+  "needs-place", and showed me a table before moving anything. I placed the rest by hand,
+  corrected some folders (Lima, Iquitos, Terelj, Tokyo, Madrid, Valencia) and trimmed the
+  set to 63.
+- Photos go into the repo as 1600px copies with metadata stripped, since the repo is
+  public; the built images were checked for EXIF and GPS (none).
+- Duplicates showed up on the site (the Michigan beach twice). Rebuilding had reused
+  filenames (`022.jpg` and so on) for different photos, and the dev server and browser
+  cached by name. Each image is now named after its source file.
+- Scrolling left on a trackpad stopped short and jittered. Three causes changed at once:
+  mandatory snap points, a blocking wheel listener, and the agent's pull fighting a
+  leftward scroll.
+- The counter now links to `/after-hours`, a four-column collage of plain photos. After
+  closing the lightbox the card stayed sharp until another click; fixed. Captions are the
+  folder's place only ("indiana", not "west lafayette"), and the order is shuffled.
+- The star field over the photos was a bit much, so a hovered photo now lingers 2s and the
+  stars fade back. This took several rounds: it worked in Claude's tests but not for me.
+  My Safari was running cached dev-server JavaScript, and the hard-refresh shortcut Claude
+  gave me (Cmd+Shift+R) is Reader view in Safari. A console trace I pasted back showed the
+  script wasn't running; Cmd+Option+E (empty caches) fixed it. We never confirmed whether
+  the first, CSS-only version would have worked; the delay now lives in the script.
+- The section got bigger: larger cards, and on desktop it fills the screen.
+- The constellation looked stale because nothing from today had been committed and the
+  branch had never been pushed; `main` was 61 commits behind. Claude committed in groups,
+  pushed, and fast-forwarded `main`, and the live site caught up.
+- Sound: I asked for agent typing/clicks and a constellation twinkle, then cut it to one
+  thing: a click on the page leaves a star that fades out, with a quiet chime. The first
+  version stayed fixed on screen while scrolling and made a "chunky" noise tick; now it's
+  pinned to the page and plays a soft pentatonic bell (Web Audio, no files).
+- My résumé is in `public/resume.pdf`, linked from the contact section.
+
+### Decisions made
+- [0018](../decisions/0018-after-hours-star-field-strip.md) amended (amendment 3): real
+  photos, card sizes, linger, scrolling, the collage page. The click star and the site's
+  one sound are in DESIGN.md §7.
+
+### What surprised me / what I learned
+- My photos had no location data at all; the time zone offset did a surprising amount of
+  the sorting.
+- "It doesn't work" can be the browser, not the code. Saying which browser up front would
+  have saved a few rounds.
+- Not committing for a day made the constellation, the site's own history, look wrong.
+
+### Screenshots
+- `../screenshots/2026-11-08-after-hours-real-photos-desktop.png`, `-mobile`
+- `../screenshots/2026-11-08-after-hours-66-photos-desktop.png`, `-mobile`
+- `../screenshots/2026-11-08-after-hours-collage-page-desktop.png`, `-collage-4col-desktop`
+- `../screenshots/2026-11-08-after-hours-full-screen-desktop.png`, `-mobile`
+
+### Next
+- Fill the project pages' TODO years from the résumé; decide whether the Data Mine research
+  and the TA job belong on the site.
+- Keep committing and pushing as work lands.

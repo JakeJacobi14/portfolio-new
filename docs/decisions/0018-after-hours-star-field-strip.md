@@ -57,3 +57,17 @@ swipe, arrow keys) with edge fades that show only when there's more that way: a 
 deliberate exception to "no gradients" (DESIGN.md §9). The agent no longer swaps cards; it
 pulls the strip along by one card every 6s.
 
+
+## Amendment 3 (2026-11-08, evening)
+- **Real photos** replace the placeholders: 63 of mine, stored as 1600px copies with
+  metadata stripped (the repo is public), each named after its source file so a name never
+  points at a different photo. Captions are the place from the folder I sorted it into.
+  Order is shuffled so neighbors are from different countries.
+- **Cards** are 224 / 240 / 288px (about four fit on desktop) and the section fills at least
+  the screen on desktop.
+- **Star fields** are drawn only for cards near view (63 thumbnails no longer load up
+  front). After a hover the photo lingers 2s, then the stars fade back over 1.2s, timed in
+  the script (a CSS transition-delay version was hard to confirm in Safari).
+- **Scrolling:** no snap points for a trackpad or mouse (they cut momentum short), a passive
+  wheel listener, and the agent lets go the moment you scroll. Touch keeps its snap points.
+- **/after-hours:** the counter links to a collage of every photo as a plain photo.
