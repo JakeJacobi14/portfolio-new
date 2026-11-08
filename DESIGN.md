@@ -66,8 +66,8 @@ Dark only. No light mode for now.
 - Scale: ratio 1.25 from 16px: `13 / 16 / 20 / 25 / 31 / 39 / 49 / 61 / 76 / 95` px
   (tokens `--text-xs` through `--text-6xl`)
 - Display: the name in the hero is the only big element on the page,
-  `clamp(49px, 6vw + 16px, 95px)` (`--text-display`), so 49px on phones and 95px on a
-  wide desktop. Everything else in the hero is small (ADR 0013).
+  `clamp(49px, 7vw + 16px, 95px)` (`--text-display`), so 49px on phones and 95px from
+  about 1130px wide. Everything else in the hero is small (ADR 0013).
 - Cyrillic: Schibsted Grotesk has none, so any Cyrillic text (the "сайн уу" greeting) is
   set in IBM Plex Mono, which has it. The whole greeting line is mono so it doesn't mix
   typefaces mid-line.
@@ -77,7 +77,13 @@ Dark only. No light mode for now.
 
 ## 6. Layout & spacing
 - Grid: none. A single left-aligned column, except the intro: from 960px up it is two
-  columns (text 3fr, central element 2fr). Breakpoints: `640px`, `960px`.
+  columns, the text as wide as the name and the sky taking the rest, 96px apart (so the
+  sky's faded edge stays clear of the name). The sky may reach up to 64px into the page's
+  right margin when there is one. Breakpoints: `640px`, `960px`.
+- Hero (ADR 0015): exactly one screen (`min-height: 100svh`), with the header laid over
+  its top. The name block and the sky are centered vertically; "Selected work" starts
+  below the fold. The sky is never taller than the screen leaves room for. On phones the
+  name comes first and the sky below it.
 - Spacing scale: 4 / 8 / 12 / 16 / 24 / 32 / 48 / 64 / 96 / 128 px (`--space-1` to `--space-10`)
 - Max widths: text `65ch`, page `1120px`
 - Side gutter: 16px under 640px, 32px above
@@ -86,7 +92,8 @@ Dark only. No light mode for now.
   The central element's frame uses the same hairline.
 
 ## 7. Motion
-- One signature moment (the build-in). Everything else is quiet: fades and small offsets only.
+- One signature moment (the build-in). Everything else is quiet: fades and small offsets
+  only, plus two faint sky details that start after the build-in (§8, ADR 0016).
 - Durations: `150ms` micro (hover, focus), `300ms` UI. The hero builds in about 2.5s;
   measured 2.9s on a 1440×900 desktop (the constellation is the last to finish) and 2.7s on
   a phone. Later sections take 1 to 4s each as they appear. Cursor moves take 0.3s to 0.7s depending on distance; lines 0.35s to 0.6s.
@@ -128,11 +135,15 @@ Dark only. No light mode for now.
 - Home: intro (with a central element), selected work, about, contact
 - Hero text (ADR 0013), one big element and everything else small:
   - "сайн уу, I'm": `--text-xs` mono, `--muted`; "сайн уу" has `lang="mn"` and a tooltip
-    on hover or focus, "sain uu · hi, in Mongolian" (same surface as the star tooltip).
+    on hover or focus, "hello, in Mongolian" (same surface as the star tooltip).
   - "Jake Jacobi": `--text-display`, weight 500, the `h1`.
   - "software engineer · building software that sees, thinks & moves": `--text-xs` mono,
     `--muted`.
-  - Sky caption: "every star is a commit to this site. oldest at the center."
+  - Sky caption: "every star is a commit to this site. oldest at the center.", centered
+    directly under the sky, one line wherever the sky is wide enough (two balanced lines
+    on phones and narrow desktops).
+  - Nothing shows relative times or "latest" wording that would go stale if the site
+    stopped being updated. Dates are absolute.
   The minors and Oregon → Indiana move to /about.
 - Central element: the **commit constellation**, drawn as a night sky (ADR 0008, ADR 0009,
   ADR 0011, ADR 0012), in the intro's right column with no frame. Every star is a real commit to this repo (`npm run commits` →
@@ -174,6 +185,16 @@ Dark only. No light mode for now.
     follows the cursor (at most 0.2s and about 30px). No lines between commits. Stardust
     fades in ring by ring just behind the sweep, then the agent visits each milestone and
     its figure draws (about 1.2s in all). Reduced motion: the finished sky, no twinkle.
+  - **Noticing the pointer** (ADR 0016): stars within 120px of a mouse pointer lift a
+    little: opacity rises by up to 40% of the way to full, the core grows by up to 20%,
+    with a smoothstep falloff by distance, easing in and out with a 140ms time constant.
+    Mouse only (no touch), never during the build-in, off for reduced motion. It doesn't
+    change the star tooltips.
+  - **Shooting star** (ADR 0016): every 15 to 20s (random), one 1px `--star` streak, 140 to
+    220px long, 12° to 35° below horizontal in either direction, across the sky (60%) or in
+    a band near the bottom of the hero. It draws and erases itself in 600ms (`--ease`),
+    peaking at 35% opacity. Only while the hero is at least 40% in view and the tab is
+    visible; never during the build-in; none for reduced motion.
   - **Accessible:** a group label describing the image, a link per star with its hash, date
     and subject, and a visually hidden list of the 10 most recent commits.
 - Project pages (case studies): problem → process → outcome → what I'd change
@@ -209,7 +230,8 @@ Goal: clean, and not obviously vibe-coded. Many of these come from a list of com
 
 **Motion**
 - No hover animation on everything. Hover states are reserved for things you can click.
-  Exception: the "сайн уу" greeting shows a translation tooltip on hover or focus.
+  Exception: the "сайн уу" greeting shows a translation tooltip on hover or focus. The
+  sky's stars noticing the pointer (§8) is ambient, not a hover state, and stays subtle.
 - No animation that delays reading content for more than ~2 seconds unless it can be skipped.
   The build-in is the one exception: skippable, once per session, and off for reduced motion.
 
