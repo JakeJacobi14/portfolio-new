@@ -440,5 +440,49 @@
     "insertions": 15,
     "deletions": 1,
     "tags": []
+  },
+  {
+    "hash": "c09928f55d9f1b25f5eee3e13161738c9e82848b",
+    "short": "c09928f",
+    "date": "2026-11-07T18:52:23-05:00",
+    "subject": "docs: ADR 0010 commit data via a pre-push hook",
+    "type": "docs",
+    "files": 1,
+    "insertions": 38,
+    "deletions": 0,
+    "tags": []
+  },
+  {
+    "hash": "07b37c3044044848a57bbb392a4804e9838fd056",
+    "short": "07b37c3",
+    "date": "2026-11-07T19:07:34-05:00",
+    "subject": "docs: ADR 0011 spiral sweep build-in, ADR 0012 no frame; DESIGN.md §8, §9",
+    "type": "docs",
+    "files": 3,
+    "insertions": 94,
+    "deletions": 12,
+    "tags": []
+  },
+  {
+    "hash": "571b1018cb44b49bc8e60c50f7ff840c70aea695",
+    "short": "571b101",
+    "date": "2026-11-07T19:07:34-05:00",
+    "subject": "feat: constellation without a frame, spiral sweep build-in, clear labels, smaller halos",
+    "type": "feat",
+    "files": 4,
+    "insertions": 263,
+    "deletions": 128,
+    "tags": []
+  },
+  {
+    "hash": "20235b907a8e3ce6c8fea06c5691859ce374d549",
+    "short": "20235b9",
+    "date": "2026-11-07T19:07:34-05:00",
+    "subject": "docs: screenshots of constellation v3 and its build-in frame sequences",
+    "type": "docs",
+    "files": 10,
+    "insertions": 0,
+    "deletions": 0,
+    "tags": []
   }
 ]
