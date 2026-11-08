@@ -660,5 +660,27 @@
     "insertions": 81,
     "deletions": 0,
     "tags": []
+  },
+  {
+    "hash": "071214d9d27b43d29d70a4eb9db61a45d946bfc4",
+    "short": "071214d",
+    "date": "2026-11-08T18:03:58-05:00",
+    "subject": "feat: sync after hours photos (add oregon fishing, drop 8)",
+    "type": "feat",
+    "files": 58,
+    "insertions": 45,
+    "deletions": 80,
+    "tags": []
+  },
+  {
+    "hash": "dcac7b0ed31ee8c8bdbc35e944d85142a62fa814",
+    "short": "dcac7b0",
+    "date": "2026-11-08T18:03:58-05:00",
+    "subject": "feat: richer build-in for selected work rows",
+    "type": "feat",
+    "files": 2,
+    "insertions": 52,
+    "deletions": 15,
+    "tags": []
   }
 ]
