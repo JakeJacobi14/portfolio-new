@@ -27,16 +27,21 @@ export type Star = Commit & {
   /** Twinkle cycle as a 0..1 fraction between --twinkle-min and --twinkle-max, or null. */
   twinkle: number | null;
   twinkleDelay: number;
-  /** Length of the build-in path from the first commit to this one. */
-  along: number;
   /** Index of the milestone figure this star belongs to, if any. */
   figure: number | null;
 };
 
 export type Figure = { milestone: number; lines: [number, number][] };
+/** A milestone label, placed where it hits nothing. x/y are its top-left, in sky units. */
+export type Label = { figure: number; text: string; x: number; y: number };
+/** Stardust for one ring of the sky (inner to outer), split into two opacities. */
+export type DustBand = { band: number; faint: string; light: string };
 
 export const REPO = "https://github.com/JakeJacobi14/portfolio-new";
-export const VIEW = 100; // viewBox is 0..100 square
+export const VIEW = 100; // stars live in 0..100
+/** The SVG reaches PAD past the stars on every side, so the edge can fade out softly. */
+export const PAD = 15;
+export const BOX = VIEW + 2 * PAD;
 const GOLDEN = Math.PI * (3 - Math.sqrt(5)); // 137.5°, in radians
 const FIT = 44; // outermost star center, from the middle
 const R_TINY = 0.14; // ~1.1px across
@@ -46,6 +51,12 @@ const BRIGHT_SHARE = 0.08; // only the biggest 8% of commits (plus milestones) a
 const FIGURE_NEAR = 6; // a figure picks from the milestone's 6 nearest commits in its range
 const FIGURE_STARS = 4;
 const DUST_MAX = 6;
+const DUST_BANDS = 6;
+// Labels are HTML at a fixed size; this is their size in sky units at the smallest sky
+// (a phone, ~3.5px per unit), so the collision check is on the safe side everywhere.
+const PX_PER_UNIT = 3.5;
+const LABEL_CHAR = 7.3 / PX_PER_UNIT; // 10px Plex Mono plus 0.12em tracking
+const LABEL_H = 13 / PX_PER_UNIT;
 
 const TONES: Record<string, Star["tone"]> = { feat: "warm", fix: "cool", refactor: "cool" };
 
@@ -65,7 +76,7 @@ const round = (v: number) => Math.round(v * 100) / 100;
 
 export function sky(commits: Commit[]) {
   const n = commits.length;
-  if (!n) return { stars: [] as Star[], figures: [] as Figure[], dust: [[], []] as string[][], length: 0 };
+  if (!n) return { stars: [] as Star[], figures: [] as Figure[], labels: [] as Label[], dust: [] as DustBand[] };
 
   const c = FIT / Math.sqrt(Math.max(n, 2)); // spacing between neighbours
   // Change size, log-scaled against the 95th percentile so one huge commit (the scaffold)
@@ -77,7 +88,6 @@ export function sky(commits: Commit[]) {
   // Bright by rank, so "a few bright stars" holds whatever the size distribution.
   const brightFrom = sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * (1 - BRIGHT_SHARE)))];
 
-  let along = 0;
   const stars: Star[] = commits.map((k, i) => {
     const rand = seeded(k.hash);
     // Phyllotaxis, then pushed up to half a spacing off it so it reads as a sky.
@@ -101,13 +111,8 @@ export function sky(commits: Commit[]) {
       tone: TONES[k.type] ?? "neutral",
       twinkle: tw < 0.125 ? round(rand()) : null,
       twinkleDelay: round(rand() * 8),
-      along: 0,
       figure: null,
     };
-  });
-  stars.forEach((s, i) => {
-    if (i) along += Math.hypot(s.x - stars[i - 1].x, s.y - stars[i - 1].y);
-    s.along = round(along);
   });
 
   // Constellation figures: each milestone joins the brightest of its nearest commits since
@@ -141,20 +146,79 @@ export function sky(commits: Commit[]) {
   });
 
   // Stardust: one faint 1px speck per changed file after the first (up to 6), scattered
-  // close around its star. Drawn as two paths (two opacities) so 500 stars stay cheap.
-  const dust: string[][] = [[], []];
+  // close around its star. Grouped into rings of the sky so it can fade in behind the
+  // build-in's outward sweep, and drawn as paths (not one element per speck) to stay cheap.
+  const bands = Array.from({ length: DUST_BANDS }, () => [[] as string[], [] as string[]]);
   for (const s of stars) {
     const rand = seeded(s.hash, 2);
     const count = Math.min(DUST_MAX, Math.max(0, s.files - 1));
+    const band = Math.min(DUST_BANDS - 1, Math.floor((Math.hypot(s.x - 50, s.y - 50) / (FIT + 2)) * DUST_BANDS));
     for (let d = 0; d < count; d++) {
       const dist = s.r + 0.8 + rand() * 2.6;
       const a = rand() * Math.PI * 2;
       const x = round(s.x + dist * Math.cos(a)), y = round(s.y + dist * Math.sin(a));
-      dust[rand() < 0.5 ? 0 : 1].push(`M${x} ${y}h.25v.25h-.25z`);
+      bands[band][rand() < 0.5 ? 0 : 1].push(`M${x} ${y}h.25v.25h-.25z`);
     }
   }
+  const dust: DustBand[] = bands
+    .map(([faint, light], band) => ({ band, faint: faint.join(""), light: light.join("") }))
+    .filter((b) => b.faint || b.light);
 
-  return { stars, figures, dust, length: round(along) };
+  return { stars, figures, labels: placeLabels(stars, figures), dust };
+}
+
+type Rect = { x: number; y: number; w: number; h: number };
+
+/** Put each milestone's label in the clearest nearby spot: try eight directions (then the
+    same farther out) and take the first one that hits no star, line or other label. */
+function placeLabels(stars: Star[], figures: Figure[]): Label[] {
+  const placed: Rect[] = [];
+  const segments = figures.flatMap((f) => f.lines.map(([a, b]) => [stars[a], stars[b]] as const));
+  const hits = (rc: Rect) => {
+    const pad = 0.4;
+    const inside = (x: number, y: number) =>
+      x > rc.x - pad && x < rc.x + rc.w + pad && y > rc.y - pad && y < rc.y + rc.h + pad;
+    let n = 0;
+    for (const s of stars) {
+      const rr = Math.max(s.r, 0.35) + 0.5;
+      const cx = Math.max(rc.x, Math.min(s.x, rc.x + rc.w)), cy = Math.max(rc.y, Math.min(s.y, rc.y + rc.h));
+      if (Math.hypot(s.x - cx, s.y - cy) < rr) n++;
+    }
+    for (const [a, b] of segments) {
+      for (let t = 0; t <= 1; t += 0.05) if (inside(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t)) { n += 2; break; }
+    }
+    for (const p of placed) if (rc.x < p.x + p.w && p.x < rc.x + rc.w && rc.y < p.y + p.h && p.y < rc.y + rc.h) n += 3;
+    if (rc.x < -PAD || rc.y < -PAD || rc.x + rc.w > VIEW + PAD || rc.y + rc.h > VIEW + PAD) n += 3;
+    return n;
+  };
+  return figures.map((f, fi) => {
+    const s = stars[f.milestone];
+    const text = s.tags.join(", ");
+    const w = text.length * LABEL_CHAR, h = LABEL_H;
+    let best: Rect | null = null, bestHits = Infinity;
+    for (const far of [1, 1.8, 2.6]) {
+      const g = s.r + 1.2 * far, d = g * 0.7;
+      const options: Rect[] = [
+        { x: s.x + g, y: s.y - h / 2, w, h }, // right
+        { x: s.x - g - w, y: s.y - h / 2, w, h }, // left
+        { x: s.x + d, y: s.y - d - h, w, h }, // up right
+        { x: s.x + d, y: s.y + d, w, h }, // down right
+        { x: s.x - d - w, y: s.y - d - h, w, h }, // up left
+        { x: s.x - d - w, y: s.y + d, w, h }, // down left
+        { x: s.x - w / 2, y: s.y - g - h, w, h }, // above
+        { x: s.x - w / 2, y: s.y + g, w, h }, // below
+      ];
+      for (const o of options) {
+        // Collisions first; between equally clear spots, prefer the one nearer the center,
+        // since the sky fades out toward its edge.
+        const k = hits(o) + Math.hypot(o.x + o.w / 2 - 50, o.y + o.h / 2 - 50) / 100;
+        if (k < bestHits) { best = o; bestHits = k; }
+      }
+      if (bestHits < 1) break; // found a spot with no collisions
+    }
+    placed.push(best!);
+    return { figure: fi, text, x: round(best!.x), y: round(best!.y) };
+  });
 }
 
 /** "2026-11-04" from an ISO date with offset, in the author's own time zone. */

@@ -3,7 +3,7 @@
 // as a night sky. Every star is a real commit to this repo, oldest at the center. Laid out
 // at build time; the script below only handles hover, focus and tap.
 import realCommits from "../data/commits.json";
-import { sky, day, REPO, VIEW, type Commit, type Star } from "../lib/constellation";
+import { sky, day, REPO, PAD, BOX, type Commit, type Star } from "../lib/constellation";
 
 let commits: Commit[] = realCommits;
 // DEV ONLY: `FAKE_COMMITS=500 npm run dev` swaps in fake data to test other sizes.
@@ -12,43 +12,40 @@ if (import.meta.env.DEV && process.env.FAKE_COMMITS) {
   commits = fakeCommits(Number(process.env.FAKE_COMMITS));
 }
 
-const { stars, figures, dust, length } = sky(commits);
+const { stars, figures, labels, dust } = sky(commits);
 const n = stars.length;
 const newest = stars[n - 1];
 const recent = stars.slice(-10).reverse();
 const tones = ["warm", "cool", "neutral"] as const;
 const toneVar = { warm: "--star-warm", cool: "--star-cool", neutral: "--star" };
-const d = stars.map((s, i) => `${i ? "L" : "M"}${s.x} ${s.y}`).join("");
+const viewBox = `${-PAD} ${-PAD} ${BOX} ${BOX}`;
+const pct = (u: number) => `${((u + PAD) / BOX) * 100}%`;
+// The sky layers reach PAD past the stars' 0..100 square on every side.
+const layer = `inset: ${(-PAD / 100) * 100}%`;
 const label = n
   ? `Commit constellation: ${n} commits to this site drawn as stars, from ${day(stars[0].date)} to ${day(newest.date)}, oldest at the center. Each one links to the commit on GitHub; arrow keys move between them.`
   : "Commit constellation: no commits yet.";
 const describe = (s: Star) => `${s.short}, ${day(s.date)}: ${s.subject}`;
 ---
-<figure class="constellation" data-drag="figure" data-constellation>
+<figure class="constellation" data-constellation>
   <div class="c-frame" data-c-frame>
-    <svg viewBox={`0 0 ${VIEW} ${VIEW}`} role="group" aria-label={label}>
+    <div class="c-layer c-sky" style={layer}>
+    <svg viewBox={viewBox} role="group" aria-label={label}>
       <defs>
         {tones.map((t) => (
           <radialGradient id={`c-halo-${t}`}>
-            <stop offset="0" style={`stop-color: var(${toneVar[t]}); stop-opacity: 0.4`} />
-            <stop offset="0.3" style={`stop-color: var(${toneVar[t]}); stop-opacity: 0.12`} />
+            <stop offset="0" style={`stop-color: var(${toneVar[t]}); stop-opacity: 0.28`} />
+            <stop offset="0.3" style={`stop-color: var(${toneVar[t]}); stop-opacity: 0.085`} />
             <stop offset="1" style={`stop-color: var(${toneVar[t]}); stop-opacity: 0`} />
           </radialGradient>
         ))}
       </defs>
-      <g class="c-dust" data-c-dust aria-hidden="true">
-        <path class="c-dust-a" d={dust[0].join("")} />
-        <path class="c-dust-b" d={dust[1].join("")} />
-      </g>
-      <path
-        class="c-path"
-        d={d}
-        stroke-dasharray={`${length} ${length}`}
-        stroke-dashoffset={length}
-        data-c-path
-        data-length={length}
-        aria-hidden="true"
-      />
+      {dust.map((b) => (
+        <g class="c-dust" data-c-dust={b.band} aria-hidden="true">
+          <path class="c-dust-a" d={b.faint} />
+          <path class="c-dust-b" d={b.light} />
+        </g>
+      ))}
       <g aria-hidden="true">
         {figures.map((f, fi) => (
           <g class="c-fig" data-c-fig={fi}>
@@ -69,7 +66,6 @@ const describe = (s: Star) => `${s.short}, ${day(s.date)}: ${s.subject}`;
           data-x={s.x}
           data-y={s.y}
           data-r={s.r}
-          data-along={s.along}
           data-short={s.short}
           data-date={day(s.date)}
           data-subject={s.subject}
@@ -80,24 +76,25 @@ const describe = (s: Star) => `${s.short}, ${day(s.date)}: ${s.subject}`;
             class:list={["c-star", `tone-${s.tone}`, { "c-tw": s.twinkle !== null }]}
             style={`--o:${s.o}; --tw-f:${s.twinkle ?? 0}; --tw-delay:-${s.twinkleDelay}s`}
           >
-            {s.bright && <circle class="c-halo" cx={s.x} cy={s.y} r={s.r * 4.5} fill={`url(#c-halo-${s.tone})`} />}
+            {s.bright && <circle class="c-halo" cx={s.x} cy={s.y} r={s.r * 3.2} fill={`url(#c-halo-${s.tone})`} />}
             <circle class="c-core" cx={s.x} cy={s.y} r={s.r} />
           </g>
         </a>
       ))}
-      <circle class="c-ring" r="0" data-c-ring aria-hidden="true" />
+      <g class="c-fx" data-c-fx aria-hidden="true"></g>
     </svg>
-    {figures.map((f, fi) => {
-      const s = stars[f.milestone];
-      return (
-        <span
-          class:list={["c-label", { left: s.x > 70 }]}
-          style={`--x:${s.x}%; --y:${s.y}%; --gap:${((s.r * 2.5 + 1.5) / VIEW) * 100}%`}
-          data-c-label-for={fi}
-          aria-hidden="true"
-        >{s.tags.join(", ")}</span>
-      );
-    })}
+    </div>
+    <!-- Focus ring and milestone labels, outside the edge fade so they stay readable. -->
+    <div class="c-layer" style={layer}>
+      <svg viewBox={viewBox} aria-hidden="true" focusable="false">
+        <circle class="c-ring" r="0" data-c-ring />
+      </svg>
+      {labels.map((l) => (
+        <span class="c-label" style={`left:${pct(l.x)}; top:${pct(l.y)}`} data-c-label-for={l.figure} aria-hidden="true">
+          {l.text}
+        </span>
+      ))}
+    </div>
     <div class="c-tip mono" data-c-tip hidden aria-hidden="true">
       <span class="c-tip-meta" data-c-tip-meta></span>
       <span data-c-tip-subject></span>
@@ -114,19 +111,18 @@ const describe = (s: Star) => `${s.short}, ${day(s.date)}: ${s.subject}`;
 
 <style>
   .constellation { margin: 0; }
-  .c-frame {
-    position: relative;
-    aspect-ratio: 1;
-    border: 1px solid color-mix(in srgb, var(--muted) 35%, transparent);
-    border-radius: var(--radius);
+  /* The frame is the stars' 0..100 square; it has no visible edge (ADR 0012). */
+  .c-frame { position: relative; aspect-ratio: 1; }
+  .c-layer { position: absolute; pointer-events: none; }
+  .c-layer svg { display: block; width: 100%; height: 100%; overflow: visible; }
+  .c-sky svg { pointer-events: auto; }
+  /* Outer stars fade toward the edge so the sky has no boundary. */
+  .c-sky {
+    -webkit-mask-image: radial-gradient(closest-side, #000 40%, transparent 92%);
+    mask-image: radial-gradient(closest-side, #000 40%, transparent 92%);
   }
-  svg {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    overflow: visible;
-  }
+  /* Before the build-in script runs, the sky is empty. */
+  :global(.is-building) [data-constellation] :is([data-c-node], [data-c-dust], [data-c-fig], .c-label) { opacity: 0; }
 
   /* Stars (DESIGN.md §8): filled points, near-white with a slight temperature shift. */
   .c-star { opacity: var(--o); }
@@ -150,13 +146,9 @@ const describe = (s: Star) => `${s.short}, ${day(s.date)}: ${s.subject}`;
   }
   [data-c-node]:focus { outline: none; } /* the accent ring is the focus indicator */
 
-  .c-path {
-    fill: none;
-    stroke: var(--muted);
-    stroke-width: 0.18;
-    stroke-linejoin: round;
-    opacity: 0.5;
-  }
+  /* Build-in effects (DESIGN.md §8): a ping ring when a star is placed, a short trail. */
+  .c-fx :global(.c-ping) { fill: none; stroke: var(--star); stroke-width: 0.15; }
+  .c-fx :global(.c-trail) { fill: none; stroke: var(--muted); stroke-width: 0.2; stroke-linecap: round; opacity: 0.35; }
   .c-fig {
     stroke: var(--muted);
     stroke-width: 0.18;
@@ -174,9 +166,7 @@ const describe = (s: Star) => `${s.short}, ${day(s.date)}: ${s.subject}`;
 
   .c-label {
     position: absolute;
-    left: calc(var(--x) + var(--gap));
-    top: var(--y);
-    transform: translateY(-50%);
+    line-height: 1.3;
     font-family: var(--font-mono);
     font-size: var(--text-2xs);
     letter-spacing: var(--tracking-label);
@@ -185,7 +175,6 @@ const describe = (s: Star) => `${s.short}, ${day(s.date)}: ${s.subject}`;
     pointer-events: none;
     transition: opacity var(--dur-ui) var(--ease);
   }
-  .c-label.left { left: auto; right: calc(100% - var(--x) + var(--gap)); }
 
   /* Hovering a milestone: its figure brightens, the rest of the sky dims. */
   .c-dust { transition: opacity var(--dur-ui) var(--ease); }
@@ -221,6 +210,7 @@ const describe = (s: Star) => `${s.short}, ${day(s.date)}: ${s.subject}`;
 </style>
 
 <script>
+  import { PAD, BOX } from "../lib/constellation";
   const fig = document.querySelector<HTMLElement>("[data-constellation]");
   const frame = fig?.querySelector<HTMLElement>("[data-c-frame]");
   if (fig && frame) {
@@ -285,9 +275,9 @@ const describe = (s: Star) => `${s.short}, ${day(s.date)}: ${s.subject}`;
         tiny, so the reach is generous: about 13px for a mouse, 20px for a finger. */
     const nearest = (e: { clientX: number; clientY: number }, reach: number) => {
       const b = svg.getBoundingClientRect();
-      const x = ((e.clientX - b.left) / b.width) * 100;
-      const y = ((e.clientY - b.top) / b.height) * 100;
-      const units = (reach / b.width) * 100;
+      const x = ((e.clientX - b.left) / b.width) * BOX - PAD;
+      const y = ((e.clientY - b.top) / b.height) * BOX - PAD;
+      const units = (reach / b.width) * BOX;
       let best = -1, bestD = Infinity;
       pts.forEach((p, k) => {
         const d = Math.hypot(p.x - x, p.y - y);
