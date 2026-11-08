@@ -3,11 +3,12 @@ import Constellation from "./Constellation.astro";
 ---
 <section class="intro" aria-labelledby="intro-title">
   <div class="text">
-    <h1 id="intro-title" data-type>Jake Jacobi</h1>
-    <p class="lede" data-type>
-      Computer science student at Purdue, with minors in Spanish and math.
-      From Oregon, now in Indiana.
+    <p class="greeting mono" data-frame>
+      <span class="mn" lang="mn" tabindex="0" aria-describedby="greeting-tip">сайн уу</span>, I'm
+      <span class="tip" id="greeting-tip" role="tooltip" aria-hidden="true">sain uu · hi, in Mongolian</span>
     </p>
+    <h1 id="intro-title" data-frame data-type>Jake Jacobi</h1>
+    <p class="tagline mono" data-frame>software engineer · building software that sees, thinks &amp; moves</p>
   </div>
   <Constellation />
 </section>
@@ -20,20 +21,45 @@ import Constellation from "./Constellation.astro";
     display: grid;
     gap: var(--space-8);
   }
+  /* One big element (the name); everything else is small (DESIGN.md §5, ADR 0013).
+     Each line is only as wide as its text, so the build-in frames fit it tightly. */
+  .text > * { width: fit-content; max-width: 100%; }
+
+  .greeting { position: relative; color: var(--muted); }
+  .mn {
+    text-decoration: underline dotted;
+    text-decoration-color: color-mix(in srgb, var(--muted) 60%, transparent);
+    text-underline-offset: 0.25em;
+    cursor: help;
+  }
+  /* Same surface as the constellation tooltip. */
+  .tip {
+    position: absolute;
+    left: 0;
+    bottom: calc(100% + var(--space-2));
+    padding: var(--space-1) var(--space-2);
+    white-space: nowrap;
+    color: var(--fg);
+    background: var(--bg);
+    border: 1px solid color-mix(in srgb, var(--muted) 35%, transparent);
+    border-radius: var(--radius);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--dur-micro) var(--ease);
+  }
+  .mn:hover ~ .tip,
+  .mn:focus ~ .tip { opacity: 1; }
+
   h1 {
-    font-size: var(--text-2xl);
+    margin-top: var(--space-3);
+    font-size: var(--text-display);
     font-weight: 500;
     line-height: var(--leading-display);
     letter-spacing: -0.02em;
   }
-  .lede {
-    margin-top: var(--space-5);
-    max-width: var(--measure);
-    font-size: var(--text-md);
+  .tagline {
+    margin-top: var(--space-4);
     color: var(--muted);
-  }
-  @media (min-width: 640px) {
-    h1 { font-size: var(--text-3xl); }
   }
   @media (min-width: 960px) {
     .intro {
@@ -42,4 +68,13 @@ import Constellation from "./Constellation.astro";
       padding-top: var(--space-8);
     }
   }
+  @media (prefers-reduced-motion: reduce) {
+    .tip { transition: none; }
+  }
 </style>
+
+<script>
+  // Escape dismisses the greeting's tooltip (WCAG 1.4.13).
+  const mn = document.querySelector<HTMLElement>(".intro .mn");
+  mn?.addEventListener("keydown", (e) => { if (e.key === "Escape") mn.blur(); });
+</script>

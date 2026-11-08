@@ -1,8 +1,9 @@
 ---
-// The signature moment (DESIGN.md §1, §7, ADR 0006, ADR 0007): four agents make the page.
-// They build the first screen on load, then each later section as it scrolls into view,
-// by typing the text, drawing the lines, and dragging and resizing the boxes.
-const agents = [0, 1, 2, 3];
+// The signature moment (DESIGN.md §1, §7, ADR 0006, ADR 0007, ADR 0014): five agents make
+// the page. On load they lay out the hero like a design tool (a text frame per element, then
+// the text sets in) while one of them builds the constellation; later sections are built as
+// they scroll into view, by typing the text, drawing the lines and dragging the boxes.
+const agents = [0, 1, 2, 3, 4];
 ---
 <div class="bi-overlay" data-bi-overlay aria-hidden="true" hidden>
   {agents.map(() => <span class="bi-caret" data-bi-caret></span>)}
@@ -17,7 +18,8 @@ const agents = [0, 1, 2, 3];
 <style is:global>
   /* Before the script runs: hide whatever the agents will make. */
   .is-building [data-type],
-  .is-building [data-drag] { opacity: 0; }
+  .is-building [data-drag],
+  .is-building [data-frame] { opacity: 0; }
   /* While building: list hairlines are drawn by an agent instead. */
   .is-building [data-row],
   .b-active [data-row]:not([data-built]) { border-color: transparent !important; }
@@ -59,8 +61,35 @@ const agents = [0, 1, 2, 3];
     width: 1px;
     height: 1px;
   }
-  .bi-guide { background: var(--muted); opacity: 0.5; }
   .bi-rule { background: color-mix(in srgb, var(--muted) 35%, transparent); }
+
+  /* A text frame, as in a design tool: thin selection rectangle, corner handles, size label. */
+  .bi-frame {
+    position: absolute;
+    border: 1px solid var(--accent);
+  }
+  .bi-frame i {
+    position: absolute;
+    width: 5px;
+    height: 5px;
+    background: var(--bg);
+    border: 1px solid var(--accent);
+  }
+  .bi-frame i:nth-child(1) { left: -3px; top: -3px; }
+  .bi-frame i:nth-child(2) { right: -3px; top: -3px; }
+  .bi-frame i:nth-child(3) { left: -3px; bottom: -3px; }
+  .bi-frame i:nth-child(4) { right: -3px; bottom: -3px; }
+  .bi-size {
+    position: absolute;
+    left: -1px;
+    top: calc(100% + var(--space-1));
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    letter-spacing: var(--tracking-label);
+    line-height: 1.3;
+    color: var(--accent);
+    white-space: nowrap;
+  }
 
   .bi-skip {
     position: fixed;
@@ -83,7 +112,8 @@ const agents = [0, 1, 2, 3];
   import { animate } from "motion/mini";
 
   const EASE: [number, number, number, number] = [0.2, 0, 0, 1]; // --ease
-  const MS_PER_CHAR = { display: 70, label: 35, body: 17 }; // DESIGN.md §7
+  const MS_PER_CHAR = { display: 45, label: 35, body: 17 }; // DESIGN.md §7
+  const FRAME_PAD = 3; // px between a text frame and its text
 
   type Box = { x: number; y: number; w: number; h: number };
   type Task = (a: Agent) => Promise<void>;
@@ -113,7 +143,8 @@ const agents = [0, 1, 2, 3];
     busy = 0;
     live = new Set<{ cancel(): void }>();
     typed = new Map<HTMLElement, string>();
-    lines: HTMLElement[] = [];
+    lines: HTMLElement[] = []; // overlay pieces (lines, frames) removed when the build ends
+    trailing = new Set<Promise<unknown>>(); // fades nobody waits on
     rowLines = new Map<HTMLElement, HTMLElement[]>();
     agents: Agent[] = [];
     stopListening: (() => void) | null = null;
@@ -144,6 +175,27 @@ const agents = [0, 1, 2, 3];
       try { await a; } finally { this.live.delete(a); }
       this.check();
     }
+    /** Run a step every frame for `dur` seconds, with progress 0..1. */
+    tween(dur: number, step: (p: number) => void) {
+      this.check();
+      return new Promise<void>((resolve, reject) => {
+        const t0 = performance.now();
+        const frame = (now: number) => {
+          if (this.aborted) return reject(new Aborted());
+          const p = Math.min(1, (now - t0) / 1000 / dur);
+          step(p);
+          if (p < 1) requestAnimationFrame(frame);
+          else resolve();
+        };
+        requestAnimationFrame(frame);
+      });
+    }
+    /** Start an animation without waiting for it (it's still cancelled by Skip). */
+    later(p: Promise<unknown>) {
+      const q = p.catch(() => {});
+      this.trailing.add(q);
+      q.then(() => this.trailing.delete(q));
+    }
     updateSkip() { skipBtn.hidden = !this.agents.some((a) => a.present); }
   }
 
@@ -160,9 +212,10 @@ const agents = [0, 1, 2, 3];
       this.x = x; this.y = y;
       this.el.style.transform = `translate(${x}px, ${y}px)`;
     }
-    enter(x: number, y: number) {
+    enter(x: number, y: number, fade = false) {
       this.place(x, y);
       this.el.style.opacity = "1";
+      if (fade) this.d.later(this.play(this.el, { opacity: [0, 1] }, { duration: 0.2 }));
       this.present = true;
       this.d.updateSkip();
     }
@@ -172,6 +225,7 @@ const agents = [0, 1, 2, 3];
       this.enter(left ? -20 : innerWidth + 20, scrollY + innerHeight * (0.3 + Math.random() * 0.5));
     }
     async move(x: number, y: number, duration = travel(Math.hypot(x - this.x, y - this.y))) {
+      if (Math.hypot(x - this.x, y - this.y) < 1) return this.d.check(); // already there
       const from = `translate(${this.x}px, ${this.y}px)`;
       this.place(x, y);
       await this.play(this.el, { transform: [from, this.el.style.transform] }, { duration });
@@ -184,15 +238,18 @@ const agents = [0, 1, 2, 3];
       this.d.updateSkip();
     }
 
-    /** Type an element's text one character at a time behind a caret. */
-    async type(el: HTMLElement | null, msPerChar: number) {
+    /** Type an element's text one character at a time behind a caret. The cursor follows
+        the caret, unless it's holding a frame (then only the caret moves). */
+    async type(el: HTMLElement | null, msPerChar: number, follow = true) {
       if (!el) return;
       const text = this.d.typed.get(el);
       const spans = [...el.children] as HTMLElement[];
       if (text === undefined || !spans.length) return;
-      const first = box(spans[0]);
-      await this.move(first.x, first.y + first.h + 2);
-      await this.wait(50);
+      if (follow) {
+        const first = box(spans[0]);
+        await this.move(first.x, first.y + first.h + 2);
+        await this.wait(50);
+      }
       const c = this.caret;
       c.style.opacity = "1";
       for (let i = 0; i < spans.length; i++) {
@@ -201,7 +258,7 @@ const agents = [0, 1, 2, 3];
         c.style.height = `${r.h}px`;
         c.style.transform = `translate(${r.x + r.w}px, ${r.y}px)`;
         // The cursor drifts along with the caret, a word at a time.
-        if (text[i] === " " || i === spans.length - 1) {
+        if (follow && (text[i] === " " || i === spans.length - 1)) {
           this.move(r.x + r.w, r.y + r.h + 2, 0.25).catch(() => {});
         }
         await this.wait(msPerChar * (0.6 + Math.random() * 0.8));
@@ -213,8 +270,41 @@ const agents = [0, 1, 2, 3];
       await this.wait(50);
     }
 
+    /** Lay out a text element like a design tool (ADR 0014): drag out a frame from its
+        top-left corner to full size, with a size label that fades, then set the text in
+        (typed behind a caret, or a short fade and rise). The frame fades once the text lands. */
+    async frame(el: HTMLElement | null, set: "type" | "rise") {
+      if (!el) return;
+      const b = box(el);
+      const x = b.x - FRAME_PAD, y = b.y - FRAME_PAD;
+      const w = b.w + 2 * FRAME_PAD, h = b.h + 2 * FRAME_PAD;
+      await this.move(x, y);
+      const f = document.createElement("div");
+      f.className = "bi-frame";
+      f.innerHTML = "<i></i><i></i><i></i><i></i><span class='bi-size'></span>";
+      f.style.left = `${x}px`;
+      f.style.top = `${y}px`;
+      overlay.append(f);
+      this.d.lines.push(f);
+      const size = f.querySelector<HTMLElement>(".bi-size")!;
+      const w0 = Math.min(w, 16), h0 = Math.min(h, 10);
+      await this.d.tween(0.45, (p) => {
+        const e = ease(p);
+        const fw = w0 + (w - w0) * e, fh = h0 + (h - h0) * e;
+        f.style.width = `${fw}px`;
+        f.style.height = `${fh}px`;
+        this.place(x + fw, y + fh);
+        size.textContent = `W ${Math.round(fw - 2 * FRAME_PAD)} · H ${Math.round(fh - 2 * FRAME_PAD)}`;
+      });
+      this.d.later(this.play(size, { opacity: [1, 0] }, { duration: 0.4, delay: 0.1 }));
+      el.style.opacity = "1";
+      if (set === "type") await this.type(el, MS_PER_CHAR.display, false);
+      else await this.play(el, { opacity: [0, 1], transform: ["translateY(4px)", "none"] }, { duration: 0.3 });
+      this.d.later(this.play(f, { opacity: [1, 0] }, { duration: 0.3 }).then(() => f.remove()));
+    }
+
     /** Draw a 1px horizontal or vertical line from one point to another, cursor moving along. */
-    async draw(x1: number, y1: number, x2: number, y2: number, kind: "bi-guide" | "bi-rule") {
+    async draw(x1: number, y1: number, x2: number, y2: number, kind: "bi-rule") {
       const h = y1 === y2;
       const line = document.createElement("span");
       line.className = `bi-line ${kind}`;
@@ -260,6 +350,7 @@ const agents = [0, 1, 2, 3];
     }
   }
 
+  const FRAME_STYLES = ["opacity", "transform"] as const;
   const DRAG_STYLES = ["opacity", "transform", "transformOrigin", "outline", "outlineOffset"] as const;
   const release = (el: HTMLElement) => { for (const p of DRAG_STYLES) el.style[p] = ""; };
 
@@ -277,6 +368,7 @@ const agents = [0, 1, 2, 3];
       }
       d.typed.set(el, text);
     }
+    for (const el of qa("[data-frame]")) el.style.opacity = "0";
     const boxes = new Map(qa("[data-drag]").map((el) => [el, box(el)]));
     for (const el of boxes.keys()) {
       el.style.opacity = "0";
@@ -303,6 +395,7 @@ const agents = [0, 1, 2, 3];
       for (const l of d.lines) l.remove();
     }
     for (const el of qa("[data-drag]")) release(el);
+    for (const el of qa("[data-frame]")) for (const p of FRAME_STYLES) el.style[p] = "";
     for (const el of qa<Element & ElementCSSInlineStyle>("[data-c-node], [data-c-label-for], [data-c-dust], [data-c-fig]")) {
       el.style.opacity = "";
       el.style.transform = "";
@@ -352,20 +445,12 @@ const agents = [0, 1, 2, 3];
     const boxes = prepare(d);
     const vw = innerWidth, vh = innerHeight, top = scrollY;
     const onScreen = (el: Element) => box(el).y < top + vh;
-    const [a1, a2, a3, a4] = (d.agents = cursorEls.map((c, i) => new Agent(d, c, caretEls[i])));
+    const [a1, a2, a3, a4, a5] = (d.agents = cursorEls.map((c, i) => new Agent(d, c, caretEls[i])));
 
-    const nav = q("header nav")!;
     const figure = q("[data-constellation]")!;
-    const title = q("#intro-title")!;
     const workLabel = q("#work-title")!;
-    const navBox = boxes.get(nav)!;
-    const titleBox = box(title);
     const rows = qa("[data-row]");
     const rowBoxes = new Map(rows.map((r) => [r, box(r)]));
-    const left = titleBox.x;
-    // The baseline guide under the name stops at the text column, not across the sky.
-    const textBox = box(q(".intro .text") ?? title);
-    const right = textBox.x + textBox.w;
 
     // ---- Building blocks shared by the first screen and later sections ----
     const markBuilt = (row: HTMLElement) => {
@@ -373,28 +458,29 @@ const agents = [0, 1, 2, 3];
       for (const l of d.rowLines.get(row) ?? []) l.remove();
     };
     /** A row's own hairlines: its top edge, plus the bottom edge for the last row. */
-    const drawRowRules = async (a: Agent, row: HTMLElement, flip = false) => {
+    const drawRowRules = async (a: Agent, row: HTMLElement) => {
       const b = rowBoxes.get(row)!;
       const ys = [b.y];
       if (row === rows[rows.length - 1]) ys.push(b.y + b.h - 1);
       for (const [i, y] of ys.entries()) {
-        const ltr = (i % 2 === 0) !== flip;
+        const ltr = i % 2 === 0;
         const line = await a.draw(ltr ? b.x : b.x + b.w, y, ltr ? b.x + b.w : b.x, y, "bi-rule");
         if ("built" in row.dataset) line.remove();
         else d.rowLines.set(row, [...(d.rowLines.get(row) ?? []), line]);
       }
     };
-    const rowTask = (row: HTMLElement, withRules: boolean): Task => async (a) => {
-      if (withRules) await drawRowRules(a, row);
+    const rowTask = (row: HTMLElement): Task => async (a) => {
+      await drawRowRules(a, row);
       await a.type(q("h3", row), MS_PER_CHAR.label);
       await a.type(q(".blurb", row), MS_PER_CHAR.body);
       await a.type(q(".meta", row), MS_PER_CHAR.label);
       markBuilt(row);
     };
     const typeTask = (el: HTMLElement | null, ms: number): Task => (a) => a.type(el, ms);
+    const caption = q("figcaption", figure);
     const figureTask: Task = async (a) => {
       await placeNodes(a);
-      await a.type(q("figcaption", figure), MS_PER_CHAR.label);
+      await a.frame(caption, "rise");
     };
     /** The commit constellation (DESIGN.md §8, ADR 0011). The agent sweeps outward from the
         center on a smooth spiral; stars ripple in as it passes (a quick scale-up, and a
@@ -531,12 +617,13 @@ const agents = [0, 1, 2, 3];
       for (const st of stars) { st.el.style.opacity = ""; st.el.style.transform = ""; }
     };
 
-    // ---- Later sections: built when they scroll into view ----
+    // ---- Everything after the hero: built once the hero is done, as it scrolls into view ----
+    // (Sections already on screen start right after the hero.)
     const units: [Element, Task[]][] = [];
-    const firstRows = rows.filter(onScreen);
-    if (!onScreen(workLabel)) units.push([workLabel, [typeTask(workLabel, MS_PER_CHAR.label)]]);
-    if (!onScreen(figure)) units.push([figure, [figureTask]]);
-    for (const r of rows) if (!firstRows.includes(r)) units.push([r, [rowTask(r, true)]]);
+    const skyNow = onScreen(figure);
+    if (!skyNow) units.push([figure, [figureTask]]);
+    units.push([workLabel, [typeTask(workLabel, MS_PER_CHAR.label)]]);
+    for (const r of rows) units.push([r, [rowTask(r)]]);
     const about = q("#about")!;
     units.push([about, [typeTask(q("#about-title"), MS_PER_CHAR.label), typeTask(q("p", about), MS_PER_CHAR.body)]]);
     const contact = q("#contact")!;
@@ -577,37 +664,51 @@ const agents = [0, 1, 2, 3];
       requestAnimationFrame(() => { ticking = false; checkUnits(); });
     };
 
-    // ---- The first screen: each agent has its own job, then helps with rows ----
+    // ---- The hero (ADR 0014): a crew working in parallel, about 2.5s in all ----
+    // Each agent appears near its first job; the starts are staggered slightly so it reads
+    // as a crew rather than everything at once.
+    const after = (ms: number) => new Promise((r) => setTimeout(r, ms)).then(() => d.check());
+    const near = (a: Agent, el: Element | null, dx: number, dy: number) => {
+      const b = el ? box(el) : { x: vw / 2, y: top + vh / 2 };
+      a.enter(b.x + dx, b.y + dy, true);
+    };
+    const greeting = q(".intro .greeting"), name = q("#intro-title"), tagline = q(".intro .tagline");
+    const home = q("header .home"), nav = q("header nav");
     const intros: (() => Promise<void>)[] = [
-      // Writer: the words.
+      // Sky: the constellation, untouched (ADR 0011); it starts on the center, no walk-in.
       async () => {
-        a1.enter(-20, top + vh * 0.45);
-        await a1.type(q("header .home"), MS_PER_CHAR.label);
-        await a1.type(title, MS_PER_CHAR.display);
-        await a1.type(q(".intro .lede"), MS_PER_CHAR.body);
+        if (!skyNow) return;
+        const svg = box(q(".c-sky svg", figure)!);
+        a1.enter(svg.x + svg.w / 2, svg.y + svg.h / 2, true);
+        await placeNodes(a1);
       },
-      // Layout: guides, the on-screen hairlines (alternating direction), the list label.
+      // The small lines around the name.
       async () => {
-        a2.enter(vw * 0.35, top - 24);
-        await a2.draw(left, top, left, top + vh, "bi-guide");
-        await a2.draw(right, titleBox.y + titleBox.h, left, titleBox.y + titleBox.h, "bi-guide");
-        for (const [i, r] of firstRows.entries()) await drawRowRules(a2, r, i % 2 === 1);
-        if (onScreen(workLabel)) await a2.type(workLabel, MS_PER_CHAR.label);
+        near(a2, greeting, -48, -24);
+        await a2.frame(greeting, "rise");
+        await a2.frame(tagline, "rise");
       },
-      // Mover: drags the nav into place and fills in its links.
+      // The name: frame, then typed in.
       async () => {
-        a3.enter(vw + 20, top + vh * 0.15);
-        await a3.drag(nav, navBox, { dx: -vw * 0.25, dy: vh * 0.3, s: 0.6 });
-        for (const link of qa("header nav a")) await a3.type(link, MS_PER_CHAR.label);
-        release(nav);
+        await after(150);
+        near(a3, name, -40, 40);
+        await a3.frame(name, "type");
       },
-      // Illustrator: the central element, if it's in the first screen.
+      // The header: the home link, then the nav.
       async () => {
-        a4.enter(vw * 0.6, top + vh + 20);
-        if (onScreen(figure)) await figureTask(a4);
+        await after(80);
+        near(a4, home, 40, 40);
+        await a4.frame(home, "rise");
+        await a4.frame(nav, "rise");
+      },
+      // The sky's caption.
+      async () => {
+        if (!skyNow) return;
+        await after(450);
+        near(a5, caption, 40, 32);
+        await a5.frame(caption, "rise");
       },
     ];
-    d.push(firstRows.map((r) => rowTask(r, false)));
 
     /** After its intro, an agent takes tasks as they come, leaving when there's nothing to do. */
     const work = async (a: Agent) => {
@@ -625,11 +726,12 @@ const agents = [0, 1, 2, 3];
       d.busy += intros.length;
       const introsDone = intros.map((intro) => intro().finally(() => { d.busy--; d.settled(); }));
       const everyone = d.agents.map((a, i) => introsDone[i].then(() => work(a)));
-      // The first screen is done once the intros and its rows are: guides fade, and
-      // later sections start listening for the scroll.
+      // The hero is done once every intro is and the frames have faded; then the rest of
+      // the page starts building as it comes into view.
       await Promise.all(introsDone);
       await d.whenIdle();
-      await Promise.all(qa(".bi-guide").map((g) => d.play(g, { opacity: [0.5, 0] }, { duration: 0.6 })));
+      await Promise.all(d.trailing);
+      d.check();
       try { sessionStorage.setItem("built", "1"); } catch {}
       addEventListener("scroll", onScroll, { passive: true });
       d.stopListening = () => removeEventListener("scroll", onScroll);

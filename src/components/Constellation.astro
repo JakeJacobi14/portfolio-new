@@ -100,7 +100,7 @@ const describe = (s: Star) => `${s.short}, ${day(s.date)}: ${s.subject}`;
       <span data-c-tip-subject></span>
     </div>
   </div>
-  <figcaption class="mono" data-type>{n} commits to this site, oldest at the center</figcaption>
+  <figcaption class="mono" data-frame>every star is a commit to this site. oldest at the center.</figcaption>
   <div class="visually-hidden">
     <p>The 10 most recent commits:</p>
     <ol>
@@ -201,7 +201,7 @@ const describe = (s: Star) => `${s.short}, ${day(s.date)}: ${s.subject}`;
   .c-tip[hidden] { display: none; }
   .c-tip-meta { color: var(--muted); }
 
-  figcaption { margin-top: var(--space-3); color: var(--muted); }
+  figcaption { width: fit-content; margin-top: var(--space-3); color: var(--muted); }
 
   @media (prefers-reduced-motion: reduce) {
     .c-tw { animation: none; }

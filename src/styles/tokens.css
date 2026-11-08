@@ -15,7 +15,7 @@
   /* Type (DESIGN.md §5) */
   --font-sans: "Schibsted Grotesk", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
-  --text-2xs: 10px; /* constellation milestone labels only */
+  --text-2xs: 10px; /* constellation milestone labels and build-in size labels only */
   --tracking-label: 0.12em;
   --text-xs: 13px;
   --text-sm: 16px;
@@ -24,6 +24,11 @@
   --text-xl: 31px;
   --text-2xl: 39px;
   --text-3xl: 49px;
+  --text-4xl: 61px;
+  --text-5xl: 76px;
+  --text-6xl: 95px;
+  /* The name in the hero, the one big element (ADR 0013). */
+  --text-display: clamp(var(--text-3xl), 6vw + 16px, var(--text-6xl));
   --leading-body: 1.5;
   --leading-display: 1.1;
 
