@@ -115,10 +115,12 @@ Dark only. No light mode for now.
   button or form field, and not one that ends a text selection) leaves a star where you
   clicked, like a bright constellation star: a 5px core in `--star-warm` with its soft
   halo (3.2× the core, peaking at 28%). It pops in (opacity 0 → 1, scale 0.4 → 1,
-  `--dur-ui`), then fades out over `--dur-click-star` (1.6s). At most 12 at once. Reduced
+  `--dur-ui`), then fades out over `--dur-click-star` (1.6s). It's pinned to the page, so
+  it scrolls with the content you clicked. At most 12 at once. Reduced
   motion: the same fade, no pop. Never interactive, hidden from screen readers.
-- **Sound:** the site is silent except for the click star's click: one very quiet, short
-  tick made in the browser (Web Audio, no files). No sound for the build-in, the agents or
+- **Sound:** the site is silent except for the click star's chime: one very quiet, high
+  bell made in the browser (Web Audio, no files): a random note of G6 A6 C7 D7 E7 with a
+  softer fifth and a faint shimmer two octaves up, ringing out over about a second. No sound for the build-in, the agents or
   the sky.
 - Build-in: unlabeled cursors (custom SVG, `--accent`) make everything on the page: five
   for the hero, plus a crew for each later section as it appears (ADR 0019).

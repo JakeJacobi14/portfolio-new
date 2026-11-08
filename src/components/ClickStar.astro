@@ -1,11 +1,12 @@
 ---
 // Click star (DESIGN.md §7): a click on the page leaves a star where you clicked, which pops
-// in and fades out, with one very quiet tick, the site's only sound. Not on links, buttons or
+// in and fades out, with one very quiet chime, the site's only sound. The star is pinned to
+// the page, so it scrolls away with the content you clicked on. Not on links, buttons or
 // form fields, which already do something.
 ---
 <style is:global>
   .click-star {
-    position: fixed;
+    position: absolute; /* page coordinates: it stays on the spot you clicked as you scroll */
     z-index: 60;
     width: 16px; /* the halo: 3.2 × the 5px core */
     height: 16px;
@@ -26,7 +27,7 @@
 
 <script>
   const MAX = 12; // stars on screen at once
-  const VOLUME = 0.15; // the tick, kept very quiet
+  const VOLUME = 0.05; // the chime, kept very quiet
   const IGNORE = "a, button, input, textarea, select, label, summary, dialog, [role='button'], [contenteditable]";
 
   const root = document.documentElement;
@@ -34,29 +35,32 @@
   const css = (name: string) => getComputedStyle(root).getPropertyValue(name).trim();
   const ms = (v: string) => (v.endsWith("ms") ? parseFloat(v) : parseFloat(v) * 1000); // "300ms" or "0.3s"
 
-  // ---- The tick: a 30ms burst of noise, band-passed so it reads as a soft click ----
+  // ---- The chime: a soft, high bell. A note from a pentatonic scale (so any two clicks
+  // sound fine together), a quieter fifth above it, and a faint shimmer two octaves up,
+  // each ringing out over about a second. ----
+  const NOTES = [1567.98, 1760, 2093, 2349.32, 2637.02]; // G6 A6 C7 D7 E7
   let audio: AudioContext | null = null;
-  let noise: AudioBuffer | null = null;
-  function tick() {
+  function chime() {
     try {
       audio ??= new AudioContext(); // made inside a click, so the browser allows it
       if (audio.state === "suspended") void audio.resume();
-      if (!noise) {
-        const len = Math.floor(audio.sampleRate * 0.03);
-        noise = audio.createBuffer(1, len, audio.sampleRate);
-        const d = noise.getChannelData(0);
-        for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 4);
+      const t = audio.currentTime;
+      const f = NOTES[Math.floor(Math.random() * NOTES.length)];
+      const out = audio.createGain();
+      out.gain.value = VOLUME;
+      out.connect(audio.destination);
+      for (const [mult, level, ring] of [[1, 1, 1.1], [1.5, 0.35, 0.8], [4, 0.12, 0.4]] as const) {
+        const osc = audio.createOscillator();
+        osc.type = "sine";
+        osc.frequency.value = f * mult;
+        const env = audio.createGain();
+        env.gain.setValueAtTime(0, t);
+        env.gain.linearRampToValueAtTime(level, t + 0.005); // a soft strike, no click
+        env.gain.exponentialRampToValueAtTime(0.0001, t + ring);
+        osc.connect(env).connect(out);
+        osc.start(t);
+        osc.stop(t + ring + 0.05);
       }
-      const src = audio.createBufferSource();
-      src.buffer = noise;
-      const band = audio.createBiquadFilter();
-      band.type = "bandpass";
-      band.frequency.value = 3200;
-      band.Q.value = 1.2;
-      const gain = audio.createGain();
-      gain.gain.value = VOLUME;
-      src.connect(band).connect(gain).connect(audio.destination);
-      src.start();
     } catch {
       // No Web Audio: the star still shows, silently.
     }
@@ -99,7 +103,7 @@
     if (e.detail === 0) return; // a click made with the keyboard
     if ((e.target as Element).closest?.(IGNORE)) return;
     if (String(getSelection() ?? "").length > 0) return; // the end of selecting text
-    tick();
-    void place(e.clientX, e.clientY);
+    chime();
+    void place(e.pageX, e.pageY);
   });
 </script>
