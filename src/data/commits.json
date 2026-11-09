@@ -748,5 +748,27 @@
     "insertions": 54,
     "deletions": 0,
     "tags": []
+  },
+  {
+    "hash": "f786243368482a14bb41a703ac804639df3c9656",
+    "short": "f786243",
+    "date": "2026-11-09T17:04:46-05:00",
+    "subject": "content: new EVC cover, no Jarvis cover",
+    "type": "other",
+    "files": 6,
+    "insertions": 4,
+    "deletions": 3,
+    "tags": []
+  },
+  {
+    "hash": "2ccc019eec772a284ca66a9ab9aa7aafe722b8e5",
+    "short": "2ccc019",
+    "date": "2026-11-09T17:04:46-05:00",
+    "subject": "feat: run the physics engine demo in place on its project page",
+    "type": "feat",
+    "files": 4,
+    "insertions": 104,
+    "deletions": 2,
+    "tags": []
   }
 ]
