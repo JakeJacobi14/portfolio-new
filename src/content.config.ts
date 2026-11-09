@@ -18,6 +18,8 @@ const work = defineCollection({
       summary: z.string(), // one line, shown on the home page
       cover: image().optional(), // under the links, full text width (DESIGN.md §8)
       coverAlt: z.string().optional(), // required with a cover: what it shows
+      // A live demo run in place, at the full page width; the cover is its poster.
+      demo: z.url().optional(),
       // A drag-to-turn model in place of the cover (ADR 0021), slimmed by scripts/slim-model.mjs.
       model: z
         .object({

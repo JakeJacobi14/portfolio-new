@@ -8,8 +8,6 @@ stack: [Python, JavaScript, MQTT, FFmpeg]
 summary: A voice assistant that joins speech recognition and LLM responses with Sonos audio over MQTT.
 links:
   - { label: github, url: "https://github.com/JakeJacobi14/jarvis" }
-cover: ./images/jarvis-cover.jpg
-coverAlt: "Jarvis's web dashboard on a phone: status pills for voice, broker, brain, TTS, STT and wake, with start, stop and take photo buttons."
 order: 5
 ---
 

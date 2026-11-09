@@ -8,7 +8,7 @@ stack: [Python, OpenCV]
 summary: Python and OpenCV perception for an autonomous go-kart; the team placed 1st at the 2026 AKS US National Grand Prix.
 links: []
 cover: ./images/evc-go-kart-vision-cover.jpg
-coverAlt: "The team around a table of laptops, one pointing at a camera feed of the track with detected lane lines drawn over it."
+coverAlt: "Teammates crowded around the go-kart in the shop, wiring exposed, one testing the electronics with bench equipment set on the frame."
 order: 1
 ---
 
