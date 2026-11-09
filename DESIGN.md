@@ -252,6 +252,21 @@ Dark only. No light mode for now.
   mono, links, then problem → what I did → result → what I'd change. Facts come only from
   the résumé; anything else says TODO until written. "← back to work" returns to `/#work`.
   Years are absolute ("2026", never "present").
+  - **Cover** (added 2026-11-09): one image under the links and above "problem", the full
+    width of the text column, its own aspect ratio, no frame or border, radius `--radius`.
+    Real alt text. Built in like the facts: an agent frames it and it rises in (`QUICK`
+    timings). Further images sit inside the section they illustrate, at the same width.
+  - **3D model** (ADR 0021, Project ECHO only): in place of the cover, a drag-to-turn model
+    on `--bg`, aspect 4:3 (16:10 from 640px up). Restyled to Night, not its CAD materials:
+    matte (Lambert) surfaces in `--fg` (metal) and `--muted` (carbon, plastic), lit by a
+    soft sky light and one key light, with `--accent` edges (creases over 40°) at 25%
+    opacity. Drag turns it (mouse: any direction, tilt limited; touch: sideways only, so
+    a vertical swipe still scrolls the page). No zoom or pan. Arrow keys turn it 15° when
+    focused (visible focus ring). When idle it turns slowly (one turn per 60s), pausing
+    while dragged and for 3s after. Renders only while on screen. Under it, one line in
+    `--text-xs` mono, `--muted`: "drag to turn · cad model: campbell downs" (the name links
+    to his ECHO page). Loading and failure states are that same line ("loading model…",
+    "3d model unavailable"). Reduced motion: no idle turning; dragging still works.
 - **02 / after hours** (ADR 0018): photos from the `after-hours` collection, with a mono
   counter computed from the data ("8 frames · 1 country"). The counter is a link to
   `/after-hours`, every photo at once (below). Photos are in a shuffled order (fixed, not
