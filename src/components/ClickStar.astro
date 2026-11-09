@@ -1,7 +1,7 @@
 ---
 // Click star (DESIGN.md §7): a click on the page leaves a star where you clicked, which pops
 // in and fades out, with one very quiet chime, the site's only sound. The star is pinned to
-// the page, so it scrolls away with the content you clicked on. Not on links, buttons or
+// the page, so it scrolls away with the content you clicked on. Not on a 3D model, links, buttons or
 // form fields, which already do something.
 ---
 <style is:global>
@@ -28,7 +28,7 @@
 <script>
   const MAX = 12; // stars on screen at once
   const VOLUME = 0.05; // the chime, kept very quiet
-  const IGNORE = "a, button, input, textarea, select, label, summary, dialog, [role='button'], [contenteditable]";
+  const IGNORE = "a, button, input, textarea, select, label, summary, dialog, [role='button'], [contenteditable], [data-stage]";
 
   const root = document.documentElement;
   const still = matchMedia("(prefers-reduced-motion: reduce)");

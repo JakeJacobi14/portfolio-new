@@ -1,0 +1,175 @@
+---
+// A drag-to-turn 3D model, restyled to Night (DESIGN.md §8, ADR 0021). three.js is only
+// loaded once the model comes near the screen, and only on the page that has one.
+interface Props {
+  src: string;
+  alt: string;
+  credit?: { name: string; url: string };
+}
+const { src, alt, credit } = Astro.props;
+---
+<figure class="model" data-model={src} data-frame>
+  <div class="stage" role="img" aria-label={alt} tabindex="0" data-stage></div>
+  <figcaption class="mono">
+    <span data-status>loading model…</span>{credit && (
+      <> · cad model: <a href={credit.url} rel="noopener">{credit.name.toLowerCase()}</a></>
+    )}
+  </figcaption>
+</figure>
+
+<style>
+  .model { margin: var(--space-6) 0 0; }
+  .stage {
+    aspect-ratio: 4 / 3;
+    background: var(--bg);
+    border-radius: var(--radius);
+    cursor: grab;
+    touch-action: pan-y; /* a vertical swipe scrolls the page; sideways turns the model */
+    user-select: none;
+  }
+  .stage:active { cursor: grabbing; }
+  .stage :global(canvas) { display: block; width: 100%; height: 100%; }
+  figcaption {
+    margin-top: var(--space-2);
+    font-size: var(--text-xs);
+    color: var(--muted);
+  }
+  figcaption a { color: inherit; text-decoration-color: color-mix(in srgb, var(--muted) 50%, transparent); }
+  figcaption a:hover, figcaption a:focus-visible { color: var(--accent); text-decoration-color: currentColor; }
+  @media (min-width: 640px) {
+    .stage { aspect-ratio: 16 / 10; }
+  }
+</style>
+
+<script>
+  const IDLE_TURN = (2 * Math.PI) / 60; // rad/s: one turn per minute
+  const IDLE_WAIT = 3000; // ms after a drag before idle turning resumes
+  const KEY_TURN = Math.PI / 12; // 15° per arrow key
+  const EDGE_ANGLE = 40; // degrees: creases sharper than this get an edge line
+  const EDGE_OPACITY = 0.25;
+
+  for (const figure of document.querySelectorAll<HTMLElement>("[data-model]")) {
+    const io = new IntersectionObserver((entries) => {
+      if (!entries.some((e) => e.isIntersecting)) return;
+      io.disconnect();
+      mount(figure).catch((err) => {
+        console.error(err);
+        const status = figure.querySelector("[data-status]");
+        if (status) status.textContent = "3d model unavailable";
+      });
+    }, { rootMargin: "400px 0px" });
+    io.observe(figure);
+  }
+
+  async function mount(figure: HTMLElement) {
+    const stage = figure.querySelector<HTMLElement>("[data-stage]")!;
+    const status = figure.querySelector<HTMLElement>("[data-status]")!;
+    const [THREE, { GLTFLoader }, { OrbitControls }] = await Promise.all([
+      import("three"),
+      import("three/examples/jsm/loaders/GLTFLoader.js"),
+      import("three/examples/jsm/controls/OrbitControls.js"),
+    ]);
+    const css = getComputedStyle(document.documentElement);
+    const token = (name: string) => new THREE.Color(css.getPropertyValue(name).trim());
+    const fg = token("--fg"), muted = token("--muted"), accent = token("--accent"), bg = token("--bg");
+    const reduce = matchMedia("(prefers-reduced-motion: reduce)");
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.domElement.setAttribute("aria-hidden", "true");
+
+    const scene = new THREE.Scene();
+    scene.add(new THREE.HemisphereLight(fg, bg, 1.6));
+    const key = new THREE.DirectionalLight(fg, 1.8);
+    key.position.set(2, 3, 2.5);
+    scene.add(key);
+
+    const gltf = await new GLTFLoader().loadAsync(figure.dataset.model!);
+    const model = gltf.scene;
+
+    // Restyle: matte surfaces in the palette, faint accent edges on sharp creases.
+    const metal = new THREE.MeshLambertMaterial({ color: fg });
+    const dark = new THREE.MeshLambertMaterial({ color: muted });
+    const edges = new THREE.LineBasicMaterial({ color: accent, transparent: true, opacity: EDGE_OPACITY });
+    const meshes: THREE.Mesh[] = [];
+    model.traverse((o) => { if ((o as THREE.Mesh).isMesh) meshes.push(o as THREE.Mesh); });
+    const edgeCache = new Map<THREE.BufferGeometry, THREE.EdgesGeometry>();
+    for (const mesh of meshes) {
+      const name = ((mesh.material as THREE.Material).name || "").toLowerCase();
+      mesh.material = /alumin|steel|metal/.test(name) ? metal : dark;
+      const geo = mesh.geometry;
+      if (!geo.attributes.normal) geo.computeVertexNormals();
+      let e = edgeCache.get(geo);
+      if (!e) { e = new THREE.EdgesGeometry(geo, EDGE_ANGLE); edgeCache.set(geo, e); }
+      mesh.add(new THREE.LineSegments(e, edges));
+    }
+
+    // Center the model and fit the camera to it.
+    const box = new THREE.Box3().setFromObject(model);
+    const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+    model.position.sub(center);
+    const pivot = new THREE.Group();
+    pivot.add(model);
+    scene.add(pivot);
+    const radius = size.length() / 2;
+    const camera = new THREE.PerspectiveCamera(30, 1, radius / 100, radius * 20);
+    const dist = radius / Math.sin(THREE.MathUtils.degToRad(30 / 2)) * 0.6; // props may clip at the corners while turning; the body fills the frame
+    camera.position.set(dist * 0.7, dist * 0.45, dist * 0.7);
+    camera.lookAt(0, 0, 0);
+
+    stage.append(renderer.domElement);
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableZoom = false;
+    controls.enablePan = false;
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.minPolarAngle = THREE.MathUtils.degToRad(25);
+    controls.maxPolarAngle = THREE.MathUtils.degToRad(100);
+    renderer.domElement.style.touchAction = "pan-y"; // OrbitControls sets "none"
+
+    const resize = () => {
+      const { width, height } = stage.getBoundingClientRect();
+      if (!width || !height) return;
+      renderer.setSize(width, height, false);
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+      draw();
+    };
+
+    // Render on demand: while idle-turning, damping, or after an input. Never off screen.
+    let visible = true, dragging = false, lastInput = -Infinity, frame = 0, last = performance.now();
+    const idle = () => !reduce.matches && !dragging && performance.now() - lastInput > IDLE_WAIT;
+    function draw() { renderer.render(scene, camera); }
+    function tick(now: number) {
+      frame = 0;
+      const dt = Math.min(0.1, (now - last) / 1000);
+      last = now;
+      if (idle()) pivot.rotation.y += IDLE_TURN * dt;
+      const moving = controls.update();
+      draw();
+      if (visible && (idle() || moving || dragging || performance.now() - lastInput < IDLE_WAIT + 100)) loop();
+    }
+    function loop() { if (!frame) { last = performance.now(); frame = requestAnimationFrame(tick); } }
+
+    controls.addEventListener("start", () => { dragging = true; lastInput = performance.now(); loop(); });
+    controls.addEventListener("end", () => { dragging = false; lastInput = performance.now(); loop(); });
+    controls.addEventListener("change", loop);
+    stage.addEventListener("keydown", (e) => {
+      const dir = e.key === "ArrowLeft" ? -1 : e.key === "ArrowRight" ? 1 : 0;
+      if (!dir) return;
+      e.preventDefault();
+      pivot.rotation.y += dir * KEY_TURN;
+      lastInput = performance.now();
+      loop();
+    });
+    new ResizeObserver(resize).observe(stage);
+    new IntersectionObserver(([e]) => { visible = e.isIntersecting; if (visible) loop(); }).observe(stage);
+    reduce.addEventListener("change", loop);
+
+    resize();
+    status.textContent = "drag to turn";
+    loop();
+  }
+</script>

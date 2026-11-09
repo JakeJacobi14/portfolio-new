@@ -16,7 +16,8 @@
   },
   "dependencies": {
     "astro": "^7.4.5",
-    "motion": "^14.9.1"
+    "motion": "^14.9.1",
+    "three": "^0.181.2"
   },
   "devDependencies": {
     "playwright": "^1.64.1"
