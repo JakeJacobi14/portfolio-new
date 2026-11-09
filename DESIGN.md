@@ -118,7 +118,7 @@ Dark only. No light mode for now.
   `--dur-ui`), then fades out over `--dur-click-star` (1.6s). It's pinned to the page, so
   it scrolls with the content you clicked. At most 12 at once. Reduced
   motion: the same fade, no pop. Never interactive, hidden from screen readers.
-- **Sound:** the site is silent except for the click star's chime: one very quiet, high
+- **Sound:** the site is silent except for the click star's chime: one quiet (15% volume), high
   bell made in the browser (Web Audio, no files): a random note of G6 A6 C7 D7 E7 with a
   softer fifth and a faint shimmer two octaves up, ringing out over about a second. No sound for the build-in, the agents or
   the sky.
@@ -257,10 +257,10 @@ Dark only. No light mode for now.
     Real alt text. Built in like the facts: an agent frames it and it rises in (`QUICK`
     timings). Further images sit inside the section they illustrate, at the same width.
   - **3D model** (ADR 0021, Project ECHO only): in place of the cover, a drag-to-turn model
-    on `--bg`, aspect 4:3 (16:10 from 640px up). Restyled to Night, not its CAD materials:
-    matte (Lambert) surfaces in `--fg` (metal) and `--muted` (carbon, plastic), lit by a
-    soft sky light and one key light, with `--accent` edges (creases over 40°) at 25%
-    opacity. Drag turns it (mouse: any direction, tilt limited; touch: sideways only, so
+    on `--bg`, aspect 4:3 (16:10 from 640px up). In its own CAD materials and colors
+    (aluminum, carbon fiber, colored parts; changed 2026-11-09, I preferred it to a
+    restyle in the palette), lit by a neutral studio environment and one key light. The
+    one place colors outside §4 appear, as with photos. Drag turns it (mouse: any direction, tilt limited; touch: sideways only, so
     a vertical swipe still scrolls the page). No zoom or pan. Arrow keys turn it 15° when
     focused (visible focus ring). When idle it turns slowly (one turn per 60s), pausing
     while dragged and for 3s after. Renders only while on screen. Under it, one line in
@@ -268,13 +268,13 @@ Dark only. No light mode for now.
     to his ECHO page). Loading and failure states are that same line ("loading model…",
     "3d model unavailable"). Reduced motion: no idle turning; dragging still works.
   - **Live demo** (added 2026-11-09, physics engine): the one thing wider than the text
-    column, at the full page width. Until asked, it's the cover screenshot (its own
-    proportions) with a "run the demo" button centered on it (`--text-xs` mono, `--fg` on
-    `--bg`, hairline border; `--accent` on hover and focus). Pressing it loads the demo in
-    an iframe in place, 16:10. Caption under it in `--text-xs` mono, `--muted`: "live demo,
-    runs here · open in a new tab ↗". Under 960px the demo's own layout doesn't fit, so
-    it stays the screenshot and the caption reads "the demo needs a wider screen · open in
-    a new tab ↗". Framed by an agent like a cover.
+    column, at the full page width, 16:10. On screens 960px and up it loads by itself once
+    it's within 200px of the screen; the cover screenshot fills the frame until the demo
+    has loaded, then the demo fades in over it (`--dur-ui`). Caption under it in
+    `--text-xs` mono, `--muted`: "live demo, runs here · open in a new tab ↗". Under 960px
+    the demo's own layout doesn't fit, so it stays the screenshot (its own proportions)
+    and the caption reads "the demo needs a wider screen · open in a new tab ↗". Framed
+    by an agent like a cover.
 - **02 / after hours** (ADR 0018): photos from the `after-hours` collection, with a mono
   counter computed from the data ("8 frames · 1 country"). The counter is a link to
   `/after-hours`, every photo at once (below). Photos are in a shuffled order (fixed, not
