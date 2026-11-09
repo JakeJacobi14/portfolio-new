@@ -7,6 +7,8 @@ team: Electric Vehicle Club (EVC), Purdue University
 stack: [Python, OpenCV]
 summary: Python and OpenCV perception for an autonomous go-kart; the team placed 1st at the 2026 AKS US National Grand Prix.
 links: []
+cover: ./images/evc-go-kart-vision-cover.jpg
+coverAlt: "The team around a table of laptops, one pointing at a camera feed of the track with detected lane lines drawn over it."
 order: 1
 ---
 

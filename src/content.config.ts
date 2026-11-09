@@ -16,7 +16,16 @@ const work = defineCollection({
       team: z.string(),
       stack: z.array(z.string()),
       summary: z.string(), // one line, shown on the home page
-      cover: image().optional(),
+      cover: image().optional(), // under the links, full text width (DESIGN.md §8)
+      coverAlt: z.string().optional(), // required with a cover: what it shows
+      // A drag-to-turn model in place of the cover (ADR 0021), slimmed by scripts/slim-model.mjs.
+      model: z
+        .object({
+          src: z.string(), // path under public/
+          alt: z.string(), // what the model shows, for screen readers
+          credit: z.object({ name: z.string(), url: z.url() }).optional(),
+        })
+        .optional(),
       links: z.array(z.object({ label: z.string(), url: z.url() })).default([]),
       order: z.number().int(),
     }),

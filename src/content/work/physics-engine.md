@@ -9,6 +9,8 @@ summary: A 2D rigid-body physics engine in JavaScript, with an interactive sandb
 links:
   - { label: demo, url: "https://jakejacobi14.github.io/physics-engine/" }
   - { label: github, url: "https://github.com/JakeJacobi14/physics-engine" }
+cover: ./images/physics-engine-cover.jpg
+coverAlt: "The physics engine's sandbox: hundreds of colored circles, squares and triangles piled up, with sliders for radius, bounciness, friction and mass below."
 order: 3
 ---
 

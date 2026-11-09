@@ -4,6 +4,8 @@ import { getCollection, render } from "astro:content";
 import Base from "../../layouts/Base.astro";
 import Header from "../../components/Header.astro";
 import Footer from "../../components/Footer.astro";
+import ModelViewer from "../../components/ModelViewer.astro";
+import { Image } from "astro:assets";
 
 export async function getStaticPaths() {
   const work = await getCollection("work");
@@ -40,6 +42,11 @@ const facts = [
           <ul class="links mono" data-links data-frame>
             {data.links.map((l) => <li><a href={l.url} rel="noopener">{l.label}</a></li>)}
           </ul>
+        )}
+        {data.model ? (
+          <ModelViewer {...data.model} />
+        ) : data.cover && (
+          <Image class="cover" src={data.cover} alt={data.coverAlt ?? ""} widths={[640, 960, 1280]} sizes="(min-width: 760px) 680px, 100vw" data-cover data-frame />
         )}
       </div>
       <div class="body">
@@ -82,7 +89,15 @@ const facts = [
   dd { margin: 0; }
   .links { display: flex; flex-wrap: wrap; margin-top: var(--space-4); color: var(--muted); }
   .links li + li::before { content: "·" / ""; margin: 0 var(--space-3); }
+  .cover {
+    display: block;
+    width: 100%;
+    height: auto;
+    margin-top: var(--space-6);
+    border-radius: var(--radius);
+  }
   .body { margin-top: var(--space-7); }
+  .body :global(img) { display: block; width: 100%; height: auto; margin: var(--space-4) 0 var(--space-5); border-radius: var(--radius); }
   .body :global(h2) {
     margin: var(--space-7) 0 var(--space-3);
     font-family: var(--font-mono);

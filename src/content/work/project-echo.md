@@ -7,6 +7,10 @@ team: Three-person agricultural UAV research team, Purdue University
 stack: [Python, OpenCV]
 summary: Agricultural drone research I co-founded, with a Python and OpenCV prototype that estimates plant stand coverage.
 links: []
+model:
+  src: /models/project-echo.glb
+  alt: "A 3D model of the Project ECHO survey drone: a quadcopter on a cross-shaped frame, with four motors and propellers and a GPS mast and two boxes mounted on top."
+  credit: { name: Campbell Downs, url: "https://campbelldowns.com/work/project-echo.html" }
 order: 2
 ---
 
