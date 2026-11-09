@@ -814,5 +814,27 @@
     "insertions": 12,
     "deletions": 12,
     "tags": []
+  },
+  {
+    "hash": "c6402aed8bc7d91a0c1dca6c19a37c4d5a4f2b15",
+    "short": "c6402ae",
+    "date": "2026-11-09T17:13:50-05:00",
+    "subject": "Revert \"fix: click chime audible (15% volume) and not lost on the first click\"",
+    "type": "other",
+    "files": 1,
+    "insertions": 2,
+    "deletions": 11,
+    "tags": []
+  },
+  {
+    "hash": "347756f747c9a2a887a845c877da2c0ff345fb15",
+    "short": "347756f",
+    "date": "2026-11-09T17:13:55-05:00",
+    "subject": "docs: DESIGN.md chime back to very quiet (revert)",
+    "type": "docs",
+    "files": 1,
+    "insertions": 1,
+    "deletions": 1,
+    "tags": []
   }
 ]
