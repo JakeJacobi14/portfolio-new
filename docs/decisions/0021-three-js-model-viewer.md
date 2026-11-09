@@ -37,3 +37,10 @@ we need.
   unaffected.
 - Updating the model means re-running the slim script on a new export.
 - Normals are rebuilt in the browser, so very sharp CAD edges may shade slightly soft.
+
+## Amendment (2026-11-09): original materials
+The restyle (matte `--fg`/`--muted`, `--accent` edges) read as colorless; I prefer the
+model as Campbell made it. The slim script now keeps the CAD's materials and textures
+(shrunk to 512px with sharp, which Astro already installs): 1.6 MB, 687 KB gzipped. The
+viewer lights it with three's `RoomEnvironment` so the metal parts have something to
+reflect.

@@ -1,12 +1,15 @@
-// Slim a CAD export (.glb) for the web, with no dependencies (DESIGN.md §8, ADR 0021).
-// The site restyles models in its own palette, so this keeps only geometry:
-//   - drops textures, images, UVs, tangents and normals (normals are rebuilt in the browser)
+// Slim a CAD export (.glb) for the web (DESIGN.md §8, ADR 0021). Keeps the CAD's own
+// materials and textures; uses sharp (already installed with Astro) to shrink the textures.
+//   - drops tangents and normals (normals are rebuilt in the browser)
 //   - stores identical parts once (motors, props, screws repeat)
 //   - quantizes positions to 16-bit (KHR_mesh_quantization) and indices to 16-bit if they fit
-//   - keeps each part's material name, so the viewer can tell carbon from metal
+//   - re-encodes textures at most 512px
 // Usage: node scripts/slim-model.mjs <in.glb> <out.glb>
 import { readFileSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
+import sharp from "sharp";
+
+const TEXTURE_MAX = 512; // px
 
 const [src, out] = process.argv.slice(2);
 if (!src || !out) throw new Error("usage: node scripts/slim-model.mjs <in.glb> <out.glb>");
@@ -58,22 +61,16 @@ function addView(bytes, target) {
   return views.length - 1;
 }
 
-// ---- Meshes: geometry only, deduplicated, positions quantized ----
+// ---- Meshes: deduplicated, positions quantized; materials kept as they are ----
 const meshCache = new Map(); // content hash -> { mesh, scale, offset }
 const meshOut = [];
-const materialNames = [];
-const materialIndex = new Map();
-const matFor = (i) => {
-  const name = (i != null && j.materials?.[i]?.name) || "default";
-  if (!materialIndex.has(name)) { materialIndex.set(name, materialNames.length); materialNames.push(name); }
-  return materialIndex.get(name);
-};
 
 function slimMesh(mi) {
   const prims = j.meshes[mi].primitives.map((p) => ({
     pos: read(p.attributes.POSITION),
     idx: p.indices != null ? read(p.indices) : null,
-    mat: matFor(p.material),
+    uv: p.attributes.TEXCOORD_0 != null ? Float32Array.from(read(p.attributes.TEXCOORD_0)) : null,
+    mat: p.material,
     mode: p.mode ?? 4,
   }));
   // One box for the whole mesh, so its primitives share a dequantization transform.
@@ -85,7 +82,7 @@ function slimMesh(mi) {
   const offset = min.map((m, k) => (m + max[k]) / 2);
   const half = max.map((m, k) => Math.max((m - min[k]) / 2, 1e-9));
   const hash = createHash("sha1");
-  const qPrims = prims.map(({ pos, idx, mat, mode }) => {
+  const qPrims = prims.map(({ pos, idx, uv, mat, mode }) => {
     const count = pos.length / 3;
     const q = new Int16Array(count * 4); // VEC3 of shorts, padded to 4-byte stride
     for (let i = 0; i < count; i++) for (let k = 0; k < 3; k++) {
@@ -93,15 +90,22 @@ function slimMesh(mi) {
     }
     const ind = idx ? (count <= 65535 ? Uint16Array.from(idx) : Uint32Array.from(idx)) : null;
     hash.update(Buffer.from(q.buffer)); if (ind) hash.update(Buffer.from(ind.buffer)); hash.update(String(mat));
-    return { q, ind, mat, mode, count };
+    if (uv) hash.update(Buffer.from(uv.buffer));
+    return { q, ind, uv, mat, mode, count };
   });
   const key = hash.digest("hex") + offset.join() + half.join();
   if (meshCache.has(key)) return meshCache.get(key);
-  const primitives = qPrims.map(({ q, ind, mat, mode, count }) => {
+  const primitives = qPrims.map(({ q, ind, uv, mat, mode, count }) => {
     const pv = addView(q, 34962);
     views[pv].byteStride = 8;
     accessors.push({ bufferView: pv, componentType: 5122, normalized: true, count, type: "VEC3", min: [-32767, -32767, -32767], max: [32767, 32767, 32767] });
-    const prim = { attributes: { POSITION: accessors.length - 1 }, material: mat, mode };
+    const prim = { attributes: { POSITION: accessors.length - 1 }, mode };
+    if (mat != null) prim.material = mat;
+    if (uv) {
+      addView(uv, 34962);
+      accessors.push({ bufferView: views.length - 1, componentType: 5126, count, type: "VEC2" });
+      prim.attributes.TEXCOORD_0 = accessors.length - 1;
+    }
     if (ind) {
       const iv = addView(ind, 34963);
       accessors.push({ bufferView: iv, componentType: ind instanceof Uint16Array ? 5123 : 5125, count: ind.length, type: "SCALAR" });
@@ -128,6 +132,18 @@ j.nodes.forEach((n, i) => {
 });
 for (const n of nodes) if (n.children && !n.children.length) delete n.children;
 
+// ---- Textures: the same images, at most TEXTURE_MAX px ----
+const images = [];
+for (const img of j.images ?? []) {
+  const v = j.bufferViews[img.bufferView];
+  const src = bin.subarray(v.byteOffset ?? 0, (v.byteOffset ?? 0) + v.byteLength);
+  const meta = await sharp(src).metadata();
+  const resized = sharp(src).resize({ width: TEXTURE_MAX, height: TEXTURE_MAX, fit: "inside", withoutEnlargement: true });
+  const png = !!meta.hasAlpha; // JPEG unless the texture needs transparency
+  const data = await (png ? resized.png({ compressionLevel: 9 }) : resized.jpeg({ quality: 82 })).toBuffer();
+  images.push({ bufferView: addView(new Uint8Array(data)), mimeType: png ? "image/png" : "image/jpeg" });
+}
+
 const outJson = {
   asset: { version: "2.0", generator: `slim-model.mjs (from ${j.asset?.generator ?? "unknown"})` },
   extensionsUsed: ["KHR_mesh_quantization"],
@@ -136,7 +152,8 @@ const outJson = {
   scenes: j.scenes,
   nodes,
   meshes: meshOut,
-  materials: materialNames.map((name) => ({ name })),
+  materials: j.materials,
+  ...(j.textures ? { textures: j.textures, images, samplers: j.samplers } : {}),
   accessors,
   bufferViews: views,
   buffers: [{ byteLength: size }],
@@ -152,4 +169,4 @@ header.writeUInt32LE(12 + 8 + jsonBuf.length + 8 + binPadded.length, 8);
 const chunkHead = (len, type) => { const b = Buffer.alloc(8); b.writeUInt32LE(len, 0); b.writeUInt32LE(type, 4); return b; };
 writeFileSync(out, Buffer.concat([header, chunkHead(jsonBuf.length, 0x4e4f534a), jsonBuf, chunkHead(binPadded.length, 0x004e4942), binPadded]));
 console.log(`${src}: ${(glb.length / 1e6).toFixed(2)} MB → ${out}: ${((12 + 16 + jsonBuf.length + binPadded.length) / 1e6).toFixed(2)} MB`);
-console.log(`${j.meshes.length} meshes → ${meshOut.length} unique; materials: ${materialNames.join(", ")}`);
+console.log(`${j.meshes.length} meshes → ${meshOut.length} unique; ${j.materials?.length ?? 0} materials, ${images.length} textures`);

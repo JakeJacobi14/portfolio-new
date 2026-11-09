@@ -1,5 +1,5 @@
 ---
-// A drag-to-turn 3D model, restyled to Night (DESIGN.md §8, ADR 0021). three.js is only
+// A drag-to-turn 3D model in its own CAD materials (DESIGN.md §8, ADR 0021). three.js is only
 // loaded once the model comes near the screen, and only on the page that has one.
 interface Props {
   src: string;
@@ -45,8 +45,6 @@ const { src, alt, credit } = Astro.props;
   const IDLE_TURN = (2 * Math.PI) / 60; // rad/s: one turn per minute
   const IDLE_WAIT = 3000; // ms after a drag before idle turning resumes
   const KEY_TURN = Math.PI / 12; // 15° per arrow key
-  const EDGE_ANGLE = 40; // degrees: creases sharper than this get an edge line
-  const EDGE_OPACITY = 0.25;
 
   for (const figure of document.querySelectorAll<HTMLElement>("[data-model]")) {
     const io = new IntersectionObserver((entries) => {
@@ -64,46 +62,41 @@ const { src, alt, credit } = Astro.props;
   async function mount(figure: HTMLElement) {
     const stage = figure.querySelector<HTMLElement>("[data-stage]")!;
     const status = figure.querySelector<HTMLElement>("[data-status]")!;
-    const [THREE, { GLTFLoader }, { OrbitControls }] = await Promise.all([
+    const [THREE, { GLTFLoader }, { OrbitControls }, { RoomEnvironment }] = await Promise.all([
       import("three"),
       import("three/examples/jsm/loaders/GLTFLoader.js"),
       import("three/examples/jsm/controls/OrbitControls.js"),
+      import("three/examples/jsm/environments/RoomEnvironment.js"),
     ]);
-    const css = getComputedStyle(document.documentElement);
-    const token = (name: string) => new THREE.Color(css.getPropertyValue(name).trim());
-    const fg = token("--fg"), muted = token("--muted"), accent = token("--accent"), bg = token("--bg");
     const reduce = matchMedia("(prefers-reduced-motion: reduce)");
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.domElement.setAttribute("aria-hidden", "true");
 
+    // The CAD's own materials (metal, carbon fiber, colored parts), lit by a neutral studio
+    // environment so metal has something to reflect, plus one key light.
     const scene = new THREE.Scene();
-    scene.add(new THREE.HemisphereLight(fg, bg, 1.6));
-    const key = new THREE.DirectionalLight(fg, 1.8);
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    pmrem.dispose();
+    const key = new THREE.DirectionalLight(0xffffff, 1.2);
     key.position.set(2, 3, 2.5);
     scene.add(key);
 
     const gltf = await new GLTFLoader().loadAsync(figure.dataset.model!);
     const model = gltf.scene;
 
-    // Restyle: matte surfaces in the palette, faint accent edges on sharp creases.
-    const metal = new THREE.MeshLambertMaterial({ color: fg });
-    const dark = new THREE.MeshLambertMaterial({ color: muted });
-    const edges = new THREE.LineBasicMaterial({ color: accent, transparent: true, opacity: EDGE_OPACITY });
-    const meshes: THREE.Mesh[] = [];
-    model.traverse((o) => { if ((o as THREE.Mesh).isMesh) meshes.push(o as THREE.Mesh); });
-    const edgeCache = new Map<THREE.BufferGeometry, THREE.EdgesGeometry>();
-    for (const mesh of meshes) {
-      const name = ((mesh.material as THREE.Material).name || "").toLowerCase();
-      mesh.material = /alumin|steel|metal/.test(name) ? metal : dark;
-      const geo = mesh.geometry;
+    // Normals were dropped to keep the file small; rebuild them once per shared geometry.
+    const done = new Set<THREE.BufferGeometry>();
+    model.traverse((o) => {
+      const geo = (o as THREE.Mesh).geometry;
+      if (!(o as THREE.Mesh).isMesh || done.has(geo)) return;
       if (!geo.attributes.normal) geo.computeVertexNormals();
-      let e = edgeCache.get(geo);
-      if (!e) { e = new THREE.EdgesGeometry(geo, EDGE_ANGLE); edgeCache.set(geo, e); }
-      mesh.add(new THREE.LineSegments(e, edges));
-    }
+      done.add(geo);
+    });
 
     // Center the model and fit the camera to it.
     const box = new THREE.Box3().setFromObject(model);
