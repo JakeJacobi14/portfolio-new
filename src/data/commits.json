@@ -715,5 +715,38 @@
     "insertions": 35,
     "deletions": 35,
     "tags": []
+  },
+  {
+    "hash": "61d6f08454016db7e327ef600a67ba5a6c87ece0",
+    "short": "61d6f08",
+    "date": "2026-11-09T16:56:50-05:00",
+    "subject": "feat: project cover images, built in with a frame",
+    "type": "feat",
+    "files": 13,
+    "insertions": 40,
+    "deletions": 1,
+    "tags": []
+  },
+  {
+    "hash": "eea2790745385a305327c18984fd15b679ec732f",
+    "short": "eea2790",
+    "date": "2026-11-09T16:56:51-05:00",
+    "subject": "feat: drag-to-turn 3D model of the ECHO drone (three.js, restyled to Night)",
+    "type": "feat",
+    "files": 6,
+    "insertions": 342,
+    "deletions": 4,
+    "tags": []
+  },
+  {
+    "hash": "9d29f4a095d855755aacd291f5360ae7642f8eb5",
+    "short": "9d29f4a",
+    "date": "2026-11-09T16:56:51-05:00",
+    "subject": "docs: ADR 0021 three.js model viewer; covers and 3D model in DESIGN.md",
+    "type": "docs",
+    "files": 2,
+    "insertions": 54,
+    "deletions": 0,
+    "tags": []
   }
 ]
