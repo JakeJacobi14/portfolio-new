@@ -27,7 +27,7 @@
 
 <script>
   const MAX = 12; // stars on screen at once
-  const VOLUME = 0.05; // the chime, kept very quiet
+  const VOLUME = 0.15; // the chime: quiet, but audible on laptop speakers
   const IGNORE = "a, button, input, textarea, select, label, summary, dialog, [role='button'], [contenteditable], [data-stage]";
 
   const root = document.documentElement;
@@ -43,7 +43,16 @@
   function chime() {
     try {
       audio ??= new AudioContext(); // made inside a click, so the browser allows it
-      if (audio.state === "suspended") void audio.resume();
+      // Safari can start it suspended; wait for it, or the first chime is lost.
+      if (audio.state !== "running") { audio.resume().then(ring, () => {}); return; }
+      ring();
+    } catch {
+      // No Web Audio: the star still shows, silently.
+    }
+  }
+  function ring() {
+    if (!audio) return;
+    try {
       const t = audio.currentTime;
       const f = NOTES[Math.floor(Math.random() * NOTES.length)];
       const out = audio.createGain();
