@@ -1,7 +1,7 @@
 ---
 title: Jarvis voice assistant
 slug: jarvis
-year: TODO
+year: "2025–26"
 role: Co-developer
 team: TODO
 stack: [Python, JavaScript, MQTT, FFmpeg]

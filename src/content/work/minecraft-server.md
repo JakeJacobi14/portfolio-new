@@ -1,7 +1,7 @@
 ---
 title: Minecraft server
 slug: minecraft-server
-year: TODO
+year: "2025–26"
 role: TODO
 team: TODO
 stack: [Java, Spigot API (PandaSpigot), Maven]

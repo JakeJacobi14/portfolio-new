@@ -1,7 +1,7 @@
 ---
 title: Chess engine
 slug: chess-engine
-year: TODO
+year: "2024–25"
 role: TODO
 team: TODO
 stack: [C++, C#, Unity]
