@@ -1,7 +1,8 @@
 ---
-// A project's live demo, run in place on request (DESIGN.md §8). The screenshot stands in
-// until someone presses "run the demo"; then the demo loads in an iframe at the full page
-// width. Below 960px the demo's own layout doesn't fit, so phones get a link instead.
+// A project's live demo, run in place (DESIGN.md §8). On wide screens it loads by itself
+// once it comes near the screen, in an iframe at the full page width; the screenshot shows
+// until it's ready. Below 960px the demo's own layout doesn't fit, so phones get the
+// screenshot and a link instead.
 import { Image } from "astro:assets";
 import type { ImageMetadata } from "astro";
 interface Props {
@@ -13,11 +14,8 @@ interface Props {
 const { url, title, poster, posterAlt } = Astro.props;
 ---
 <figure class="demo" data-demo data-frame>
-  <div class="stage" data-demo-stage style={`aspect-ratio: ${poster.width} / ${poster.height}`}>
+  <div class="stage" data-demo-stage data-url={url} data-title={`${title} demo`} style={`--poster: ${poster.width} / ${poster.height}`}>
     <Image src={poster} alt={posterAlt} widths={[640, 1120, 1600]} sizes="(min-width: 1184px) 1056px, calc(100vw - 64px)" />
-    <button type="button" class="run mono" data-demo-run data-url={url} data-title={`${title} demo`}>
-      run the demo
-    </button>
   </div>
   <figcaption class="mono">
     <span class="wide">live demo, runs here · </span><span class="narrow">the demo needs a wider screen · </span><a href={url} rel="noopener" target="_blank">open in a new tab ↗</a>
@@ -26,35 +24,28 @@ const { url, title, poster, posterAlt } = Astro.props;
 
 <style>
   .demo { margin: var(--space-6) 0 0; }
-  /* The poster keeps its own shape; the running demo gets 16:10, room for its controls. */
+  /* Phones: the screenshot in its own shape. Wide screens: 16:10, room for the demo's
+     controls; the screenshot fills it until the demo has loaded over it. */
   .stage {
     position: relative;
+    aspect-ratio: var(--poster);
     background: var(--bg);
     border-radius: var(--radius);
     overflow: hidden;
   }
-  .stage:has(iframe) { aspect-ratio: 16 / 10 !important; }
   .stage :global(img), .stage :global(iframe) {
     display: block;
     width: 100%;
     height: 100%;
     border: 0;
   }
-  .run {
+  .stage :global(iframe) {
     position: absolute;
-    left: 50%;
-    top: 50%;
-    translate: -50% -50%;
-    padding: var(--space-3) var(--space-5);
-    font-size: var(--text-xs);
-    color: var(--fg);
-    background: var(--bg);
-    border: 1px solid color-mix(in srgb, var(--muted) 35%, transparent);
-    border-radius: var(--radius);
-    cursor: pointer;
-    transition: color var(--dur-micro) var(--ease), border-color var(--dur-micro) var(--ease);
+    inset: 0;
+    opacity: 0;
+    transition: opacity var(--dur-ui) var(--ease);
   }
-  .run:hover, .run:focus-visible { color: var(--accent); border-color: var(--accent); }
+  .stage :global(iframe.ready) { opacity: 1; }
   figcaption {
     margin-top: var(--space-2);
     font-size: var(--text-xs);
@@ -63,25 +54,28 @@ const { url, title, poster, posterAlt } = Astro.props;
   figcaption a { color: inherit; text-decoration-color: color-mix(in srgb, var(--muted) 50%, transparent); }
   figcaption a:hover, figcaption a:focus-visible { color: var(--accent); text-decoration-color: currentColor; }
   .wide { display: none; }
-  @media (max-width: 959px) {
-    .run { display: none; }
-  }
   @media (min-width: 960px) {
+    .stage { aspect-ratio: 16 / 10; }
+    .stage :global(img) { object-fit: cover; object-position: top; }
     .wide { display: inline; }
     .narrow { display: none; }
   }
 </style>
 
 <script>
-  for (const btn of document.querySelectorAll<HTMLButtonElement>("[data-demo-run]")) {
-    btn.addEventListener("click", () => {
-      const stage = btn.closest<HTMLElement>("[data-demo-stage]")!;
+  const wide = matchMedia("(min-width: 960px)");
+  for (const stage of document.querySelectorAll<HTMLElement>("[data-demo-stage]")) {
+    const io = new IntersectionObserver((entries) => {
+      if (!wide.matches || !entries.some((e) => e.isIntersecting)) return;
+      io.disconnect();
       const frame = document.createElement("iframe");
-      frame.src = btn.dataset.url!;
-      frame.title = btn.dataset.title!;
-      frame.allow = "fullscreen";
-      stage.replaceChildren(frame);
-      frame.focus();
-    });
+      frame.src = stage.dataset.url!;
+      frame.title = stage.dataset.title!;
+      frame.allow = "autoplay; fullscreen"; // the demo's own sounds, once it allows them
+      frame.addEventListener("load", () => frame.classList.add("ready"), { once: true });
+      stage.append(frame);
+    }, { rootMargin: "200px 0px" });
+    io.observe(stage);
+    wide.addEventListener("change", () => { if (wide.matches) { io.unobserve(stage); io.observe(stage); } });
   }
 </script>
