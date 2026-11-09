@@ -688,6 +688,8 @@
           await Promise.all([quickType(c, h), ...parts.map((p, i) => c.reveal(p, 80 + i * 60))]);
         }, undefined, headUnit);
       }
+      const demo = q("[data-demo]");
+      unit(demo, [demo], (c) => quickFrame(c, demo), undefined, headUnit);
       unit(footer, [footer], (c) => quickFrame(c, q("p", footer!)), undefined, headUnit);
     } else {
       const figure = q("[data-constellation]")!;

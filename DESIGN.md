@@ -267,6 +267,14 @@ Dark only. No light mode for now.
     `--text-xs` mono, `--muted`: "drag to turn · cad model: campbell downs" (the name links
     to his ECHO page). Loading and failure states are that same line ("loading model…",
     "3d model unavailable"). Reduced motion: no idle turning; dragging still works.
+  - **Live demo** (added 2026-11-09, physics engine): the one thing wider than the text
+    column, at the full page width. Until asked, it's the cover screenshot (its own
+    proportions) with a "run the demo" button centered on it (`--text-xs` mono, `--fg` on
+    `--bg`, hairline border; `--accent` on hover and focus). Pressing it loads the demo in
+    an iframe in place, 16:10. Caption under it in `--text-xs` mono, `--muted`: "live demo,
+    runs here · open in a new tab ↗". Under 960px the demo's own layout doesn't fit, so
+    it stays the screenshot and the caption reads "the demo needs a wider screen · open in
+    a new tab ↗". Framed by an agent like a cover.
 - **02 / after hours** (ADR 0018): photos from the `after-hours` collection, with a mono
   counter computed from the data ("8 frames · 1 country"). The counter is a link to
   `/after-hours`, every photo at once (below). Photos are in a shuffled order (fixed, not

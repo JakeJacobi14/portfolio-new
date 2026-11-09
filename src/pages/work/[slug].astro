@@ -5,6 +5,7 @@ import Base from "../../layouts/Base.astro";
 import Header from "../../components/Header.astro";
 import Footer from "../../components/Footer.astro";
 import ModelViewer from "../../components/ModelViewer.astro";
+import DemoEmbed from "../../components/DemoEmbed.astro";
 import { Image } from "astro:assets";
 
 export async function getStaticPaths() {
@@ -45,10 +46,13 @@ const facts = [
         )}
         {data.model ? (
           <ModelViewer {...data.model} />
-        ) : data.cover && (
+        ) : data.cover && !data.demo && (
           <Image class="cover" src={data.cover} alt={data.coverAlt ?? ""} widths={[640, 960, 1280]} sizes="(min-width: 760px) 680px, 100vw" data-cover data-frame />
         )}
       </div>
+      {data.demo && data.cover && (
+        <DemoEmbed url={data.demo} title={data.title} poster={data.cover} posterAlt={data.coverAlt ?? ""} />
+      )}
       <div class="body">
         <Content />
       </div>
@@ -68,7 +72,8 @@ const facts = [
   /* Before the build-in script runs, the sections wait to be built (ADR 0020). */
   :global(.is-building) .body > :global(*) { opacity: 0; }
   .back:hover, .back:focus-visible { text-decoration-color: currentColor; }
-  article { max-width: var(--measure); }
+  /* Text keeps to the measure; a live demo takes the full page width. */
+  [data-work-head], .body { max-width: var(--measure); }
   h1 {
     margin-top: var(--space-7);
     font-size: var(--text-2xl);
