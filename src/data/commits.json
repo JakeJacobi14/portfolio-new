@@ -770,5 +770,49 @@
     "insertions": 104,
     "deletions": 2,
     "tags": []
+  },
+  {
+    "hash": "47672c44318f94ff40da9eaadd42cccb968e008a",
+    "short": "47672c4",
+    "date": "2026-11-09T17:09:47-05:00",
+    "subject": "feat: ECHO model in its original CAD materials and textures",
+    "type": "feat",
+    "files": 4,
+    "insertions": 60,
+    "deletions": 43,
+    "tags": []
+  },
+  {
+    "hash": "86e92fde16af1085cfca833b4d95295ea5f265b1",
+    "short": "86e92fd",
+    "date": "2026-11-09T17:09:47-05:00",
+    "subject": "feat: physics demo loads by itself when it comes into view",
+    "type": "feat",
+    "files": 1,
+    "insertions": 28,
+    "deletions": 34,
+    "tags": []
+  },
+  {
+    "hash": "e15cd924748e7d842d7a4bb8a6a0e6afff7ccbb5",
+    "short": "e15cd92",
+    "date": "2026-11-09T17:09:47-05:00",
+    "subject": "fix: click chime audible (15% volume) and not lost on the first click",
+    "type": "fix",
+    "files": 1,
+    "insertions": 11,
+    "deletions": 2,
+    "tags": []
+  },
+  {
+    "hash": "6a1dde91b5c999e708044dfc7e1f36ffc8707f68",
+    "short": "6a1dde9",
+    "date": "2026-11-09T17:09:47-05:00",
+    "subject": "docs: DESIGN.md for the model's own materials, auto-loading demo, chime volume",
+    "type": "docs",
+    "files": 1,
+    "insertions": 12,
+    "deletions": 12,
+    "tags": []
   }
 ]
