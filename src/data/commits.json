@@ -836,5 +836,82 @@
     "insertions": 1,
     "deletions": 1,
     "tags": []
+  },
+  {
+    "hash": "c2dbe6e05e938edae3c6c7fec9bd77389790f881",
+    "short": "c2dbe6e",
+    "date": "2026-11-10T12:35:22-05:00",
+    "subject": "content: after hours alt text from captions; new EVC, physics and Jarvis summaries",
+    "type": "other",
+    "files": 57,
+    "insertions": 57,
+    "deletions": 57,
+    "tags": []
+  },
+  {
+    "hash": "d14d44fbd145c822f09c6a46ba87549f6f9f3a87",
+    "short": "d14d44f",
+    "date": "2026-11-10T12:35:22-05:00",
+    "subject": "fix(a11y): greeting tooltip out of the line; typed text stays in the accessibility tree",
+    "type": "fix",
+    "files": 2,
+    "insertions": 16,
+    "deletions": 9,
+    "tags": []
+  },
+  {
+    "hash": "4c692990ea5a3cf4d17d2f9661be5eddaff01be1",
+    "short": "4c69299",
+    "date": "2026-11-10T12:35:22-05:00",
+    "subject": "feat: link the repo from the footer",
+    "type": "feat",
+    "files": 1,
+    "insertions": 1,
+    "deletions": 1,
+    "tags": []
+  },
+  {
+    "hash": "977ceb047d574b5296b941e341bc696ef5070ad0",
+    "short": "977ceb0",
+    "date": "2026-11-10T12:35:22-05:00",
+    "subject": "feat: star favicon, Open Graph and Twitter cards, canonical links, meta description",
+    "type": "feat",
+    "files": 11,
+    "insertions": 73,
+    "deletions": 16,
+    "tags": []
+  },
+  {
+    "hash": "121791ffbab0a9c9a85cd94125cdf84922e43f9f",
+    "short": "121791f",
+    "date": "2026-11-10T12:35:22-05:00",
+    "subject": "perf: self-hosted fonts, inline CSS, deferred 3D model, lighter after hours images",
+    "type": "other",
+    "files": 18,
+    "insertions": 2918,
+    "deletions": 200,
+    "tags": []
+  },
+  {
+    "hash": "933fa294e19acce9f679a0b3860424c1337f9ab0",
+    "short": "933fa29",
+    "date": "2026-11-10T12:35:22-05:00",
+    "subject": "docs: DESIGN.md for self-hosted fonts, icon and link preview, demo loading",
+    "type": "docs",
+    "files": 1,
+    "insertions": 10,
+    "deletions": 2,
+    "tags": []
+  },
+  {
+    "hash": "c0584d920ed4d5b9f7b529e5998eef5952321640",
+    "short": "c0584d9",
+    "date": "2026-11-10T12:48:19-05:00",
+    "subject": "docs: journal 2026-11-10",
+    "type": "docs",
+    "files": 3,
+    "insertions": 80,
+    "deletions": 0,
+    "tags": []
   }
 ]
