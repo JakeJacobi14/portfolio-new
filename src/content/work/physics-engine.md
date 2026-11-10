@@ -33,7 +33,7 @@ circles only, but by the end it handled polygons too.
 - Kept it fast with a bounding-radius check that skips far-apart pairs before any expensive math, and a hybrid spatial hash that puts small objects in a grid and checks large or static ones separately.
 - Kept stacks stable by splitting each frame into 8 substeps with 5 solver iterations each, and by letting resting objects sleep until something hits them. This stopped jitter, sinking, and objects gaining energy from nowhere. The spatial hash and sleeping bodies were the hardest parts of the project, and both took more than one attempt.
 - Built a sandbox around the engine for spawning, dragging, inspecting and deleting objects. You can pin objects in place and adjust size, mass, bounciness, friction, angle, air resistance and time scale.
-- Learned from YouTube tutorials and Wikipedia, and learned JavaScript along the way. I used AI heavily alongside the work, but I wrote all of the code myself.
+- Learned from YouTube tutorials and Wikipedia, and learned JavaScript along the way.
 
 ## Result
 
