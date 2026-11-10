@@ -46,11 +46,29 @@ const { src, alt, credit } = Astro.props;
   const IDLE_WAIT = 3000; // ms after a drag before idle turning resumes
   const KEY_TURN = Math.PI / 12; // 15° per arrow key
 
+  const root = document.documentElement;
+  /** Give the browser a chance to paint between heavy steps (shorter tasks, smoother page). */
+  const breathe = () => new Promise<void>((r) => requestAnimationFrame(() => setTimeout(r, 0)));
+  /** The model waits for the page to load and its build-in to finish, then for a quiet
+      moment, so it never holds up the text arriving. */
+  async function settled() {
+    if (document.readyState !== "complete") await new Promise((r) => addEventListener("load", r, { once: true }));
+    await breathe();
+    if (root.classList.contains("hero-building")) {
+      await new Promise<void>((r) => {
+        const mo = new MutationObserver(() => { if (!root.classList.contains("hero-building")) { mo.disconnect(); r(); } });
+        mo.observe(root, { attributes: true, attributeFilter: ["class"] });
+        setTimeout(() => { mo.disconnect(); r(); }, 4000);
+      });
+    }
+    await new Promise((r) => ("requestIdleCallback" in window ? requestIdleCallback(r, { timeout: 1500 }) : setTimeout(r, 200)));
+  }
+
   for (const figure of document.querySelectorAll<HTMLElement>("[data-model]")) {
     const io = new IntersectionObserver((entries) => {
       if (!entries.some((e) => e.isIntersecting)) return;
       io.disconnect();
-      mount(figure).catch((err) => {
+      settled().then(() => mount(figure)).catch((err) => {
         console.error(err);
         const status = figure.querySelector("[data-status]");
         if (status) status.textContent = "3d model unavailable";
@@ -86,10 +104,12 @@ const { src, alt, credit } = Astro.props;
     key.position.set(2, 3, 2.5);
     scene.add(key);
 
+    await breathe();
     const gltf = await new GLTFLoader().loadAsync(figure.dataset.model!);
+    await breathe();
     const model = gltf.scene;
 
-    // Normals were dropped to keep the file small; rebuild them once per shared geometry.
+    // Normals come with the file (scripts/slim-model.mjs); rebuild them only if missing.
     const done = new Set<THREE.BufferGeometry>();
     model.traverse((o) => {
       const geo = (o as THREE.Mesh).geometry;
@@ -134,7 +154,8 @@ const { src, alt, credit } = Astro.props;
     // Render on demand: while idle-turning, damping, or after an input. Never off screen.
     let visible = true, dragging = false, lastInput = -Infinity, frame = 0, last = performance.now();
     const idle = () => !reduce.matches && !dragging && performance.now() - lastInput > IDLE_WAIT;
-    function draw() { renderer.render(scene, camera); }
+    let ready = false; // nothing is drawn until the shaders are compiled
+    function draw() { if (ready) renderer.render(scene, camera); }
     function tick(now: number) {
       frame = 0;
       const dt = Math.min(0.1, (now - last) / 1000);
@@ -162,6 +183,12 @@ const { src, alt, credit } = Astro.props;
     reduce.addEventListener("change", loop);
 
     resize();
+    // Compile the materials' shaders without blocking the page, then show the model.
+    await breathe();
+    await renderer.compileAsync(scene, camera);
+    await breathe();
+    ready = true;
+    draw();
     status.textContent = "drag to turn";
     loop();
   }

@@ -1,7 +1,7 @@
 ---
 // A project's live demo, run in place (DESIGN.md §8). On wide screens it loads by itself
-// once it comes near the screen, in an iframe at the full page width; the screenshot shows
-// until it's ready. Below 960px the demo's own layout doesn't fit, so phones get the
+// once it comes near the screen and the visitor has first moved, touched or typed, in an
+// iframe at the full page width; the screenshot shows until it's ready. Below 960px the demo's own layout doesn't fit, so phones get the
 // screenshot and a link instead.
 import { Image } from "astro:assets";
 import type { ImageMetadata } from "astro";
@@ -15,7 +15,7 @@ const { url, title, poster, posterAlt } = Astro.props;
 ---
 <figure class="demo" data-demo data-frame>
   <div class="stage" data-demo-stage data-url={url} data-title={`${title} demo`} style={`--poster: ${poster.width} / ${poster.height}`}>
-    <Image src={poster} alt={posterAlt} widths={[640, 1120, 1600]} sizes="(min-width: 1184px) 1056px, calc(100vw - 64px)" />
+    <Image src={poster} alt={posterAlt} loading="eager" widths={[640, 1120, 1600]} sizes="(min-width: 1184px) 1056px, calc(100vw - 64px)" />
   </div>
   <figcaption class="mono">
     <span class="wide">live demo, runs here · </span><span class="narrow">the demo needs a wider screen · </span><a href={url} rel="noopener" target="_blank">open in a new tab ↗</a>
@@ -64,10 +64,18 @@ const { url, title, poster, posterAlt } = Astro.props;
 
 <script>
   const wide = matchMedia("(min-width: 960px)");
+  // The demo is a whole second page; it loads once the visitor first moves, touches or types
+  // (in practice at once), not during this page's own load, so it never competes with it.
+  const INPUTS = ["pointermove", "pointerdown", "wheel", "touchstart", "keydown"] as const;
+  const interacted = new Promise<void>((resolve) => {
+    const go = () => { for (const t of INPUTS) removeEventListener(t, go); resolve(); };
+    for (const t of INPUTS) addEventListener(t, go, { passive: true });
+  });
   for (const stage of document.querySelectorAll<HTMLElement>("[data-demo-stage]")) {
-    const io = new IntersectionObserver((entries) => {
+    const io = new IntersectionObserver(async (entries) => {
       if (!wide.matches || !entries.some((e) => e.isIntersecting)) return;
       io.disconnect();
+      await interacted;
       const frame = document.createElement("iframe");
       frame.src = stage.dataset.url!;
       frame.title = stage.dataset.title!;

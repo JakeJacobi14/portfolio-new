@@ -10,8 +10,9 @@ import { getPhotos } from "../lib/after-hours";
 const { photos, count } = await getPhotos();
 const tiles = await Promise.all(
   photos.map(async (p) => {
-    const img = await getImage({ src: p.image, width: 560, format: "webp" });
-    return { label: p.label, alt: p.alt, src: img.src, w: img.attributes.width, h: img.attributes.height };
+    // Two sizes: a phone's two columns need far less than a 2× desktop column.
+    const img = await getImage({ src: p.image, widths: [280, 560], format: "webp" });
+    return { label: p.label, alt: p.alt, src: img.src, srcset: img.srcSet.attribute, w: img.attributes.width, h: img.attributes.height };
   }),
 );
 ---
@@ -24,10 +25,12 @@ const tiles = await Promise.all(
       <p class="count mono">{count}</p>
     </div>
     <ol class="collage">
-      {tiles.map((t) => (
+      {tiles.map((t, i) => (
         <li>
           <figure>
-            <img src={t.src} alt={t.alt} width={t.w} height={t.h} loading="lazy" decoding="async" />
+            {/* The first photo is the largest thing on the first screen: load it first. */}
+            <img src={t.src} srcset={t.srcset} sizes="(max-width: 479px) 46vw, (max-width: 899px) 31vw, 270px" alt={t.alt} width={t.w} height={t.h}
+              loading={i === 0 ? "eager" : "lazy"} fetchpriority={i === 0 ? "high" : "auto"} decoding="async" />
             <figcaption class="mono">{t.label}</figcaption>
           </figure>
         </li>

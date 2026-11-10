@@ -47,7 +47,7 @@ const facts = [
         {data.model ? (
           <ModelViewer {...data.model} />
         ) : data.cover && !data.demo && (
-          <Image class="cover" src={data.cover} alt={data.coverAlt ?? ""} widths={[640, 960, 1280]} sizes="(min-width: 760px) 680px, 100vw" data-cover data-frame />
+          <Image class="cover" src={data.cover} loading="eager" alt={data.coverAlt ?? ""} widths={[640, 960, 1280]} sizes="(min-width: 760px) 680px, 100vw" data-cover data-frame />
         )}
       </div>
       {data.demo && data.cover && (

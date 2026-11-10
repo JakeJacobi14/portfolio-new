@@ -1,6 +1,7 @@
 // Slim a CAD export (.glb) for the web (DESIGN.md §8, ADR 0021). Keeps the CAD's own
 // materials and textures; uses sharp (already installed with Astro) to shrink the textures.
-//   - drops tangents and normals (normals are rebuilt in the browser)
+//   - drops tangents; recomputes smooth normals and stores them as 8-bit (so the browser
+//     doesn't have to)
 //   - stores identical parts once (motors, props, screws repeat)
 //   - quantizes positions to 16-bit (KHR_mesh_quantization) and indices to 16-bit if they fit
 //   - re-encodes textures at most 512px
@@ -61,6 +62,26 @@ function addView(bytes, target) {
   return views.length - 1;
 }
 
+/** Smooth vertex normals (area-weighted, like three's computeVertexNormals), computed in the
+    quantized space the positions are stored in, packed as normalized bytes (stride 4). */
+function normals(q, ind, count) {
+  const n = new Float32Array(count * 3);
+  const tri = ind ?? Uint32Array.from({ length: count }, (_, i) => i);
+  for (let t = 0; t + 2 < tri.length; t += 3) {
+    const [a, b, c] = [tri[t], tri[t + 1], tri[t + 2]];
+    const e1 = [0, 1, 2].map((k) => q[b * 4 + k] - q[a * 4 + k]);
+    const e2 = [0, 1, 2].map((k) => q[c * 4 + k] - q[a * 4 + k]);
+    const f = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
+    for (const v of [a, b, c]) for (let k = 0; k < 3; k++) n[v * 3 + k] += f[k];
+  }
+  const out = new Int8Array(count * 4);
+  for (let i = 0; i < count; i++) {
+    const len = Math.hypot(n[i * 3], n[i * 3 + 1], n[i * 3 + 2]) || 1;
+    for (let k = 0; k < 3; k++) out[i * 4 + k] = Math.round((n[i * 3 + k] / len) * 127);
+  }
+  return out;
+}
+
 // ---- Meshes: deduplicated, positions quantized; materials kept as they are ----
 const meshCache = new Map(); // content hash -> { mesh, scale, offset }
 const meshOut = [];
@@ -98,8 +119,12 @@ function slimMesh(mi) {
   const primitives = qPrims.map(({ q, ind, uv, mat, mode, count }) => {
     const pv = addView(q, 34962);
     views[pv].byteStride = 8;
+    const nv = addView(normals(q, ind, count), 34962);
+    views[nv].byteStride = 4;
+    accessors.push({ bufferView: nv, componentType: 5120, normalized: true, count, type: "VEC3" });
+    const normalAccessor = accessors.length - 1;
     accessors.push({ bufferView: pv, componentType: 5122, normalized: true, count, type: "VEC3", min: [-32767, -32767, -32767], max: [32767, 32767, 32767] });
-    const prim = { attributes: { POSITION: accessors.length - 1 }, mode };
+    const prim = { attributes: { POSITION: accessors.length - 1, NORMAL: normalAccessor }, mode };
     if (mat != null) prim.material = mat;
     if (uv) {
       addView(uv, 34962);
