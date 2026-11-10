@@ -924,5 +924,16 @@
     "insertions": 4,
     "deletions": 3,
     "tags": []
+  },
+  {
+    "hash": "8e069e8cbe42f2bd79ee40c93635711ca4f7232a",
+    "short": "8e069e8",
+    "date": "2026-11-10T13:17:07-05:00",
+    "subject": "fix: favicon on transparent, so Safari doesn't outline a dark square",
+    "type": "fix",
+    "files": 8,
+    "insertions": 12,
+    "deletions": 10,
+    "tags": []
   }
 ]
