@@ -979,5 +979,16 @@
     "insertions": 23,
     "deletions": 8,
     "tags": []
+  },
+  {
+    "hash": "5a9dd5b33bcd00721bbd5ae071961a6973dddd19",
+    "short": "5a9dd5b",
+    "date": "2026-11-10T18:01:39-05:00",
+    "subject": "docs: trim AI note from physics engine page",
+    "type": "docs",
+    "files": 1,
+    "insertions": 1,
+    "deletions": 1,
+    "tags": []
   }
 ]
