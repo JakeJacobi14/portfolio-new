@@ -5,7 +5,7 @@ year: "2025–26"
 role: Co-developer
 team: TODO
 stack: [Python, JavaScript, MQTT, FFmpeg]
-summary: A voice assistant that joins speech recognition and LLM responses with Sonos audio over MQTT.
+summary: A voice assistant combining speech recognition, LLM responses and Sonos audio over MQTT, with a web dashboard.
 links:
   - { label: github, url: "https://github.com/JakeJacobi14/jarvis" }
 order: 5

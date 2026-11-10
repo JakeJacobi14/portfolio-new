@@ -5,7 +5,7 @@ year: "2026"
 role: TODO
 team: TODO
 stack: [JavaScript, HTML5 Canvas]
-summary: A 2D rigid-body physics engine in JavaScript, with an interactive sandbox.
+summary: A 2D rigid-body physics engine in JavaScript, with collisions, friction and torque in an interactive sandbox.
 links:
   - { label: demo, url: "https://jakejacobi14.github.io/physics-engine/" }
   - { label: github, url: "https://github.com/JakeJacobi14/physics-engine" }
