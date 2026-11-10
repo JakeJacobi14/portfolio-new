@@ -63,6 +63,8 @@ Dark only. No light mode for now.
 ## 5. Typography
 - Display and body: **Schibsted Grotesk** (Google Fonts, variable 400 to 700)
 - Mono (labels, metadata, cursor tags): **IBM Plex Mono** (Google Fonts, 400 and 500)
+- Both are self-hosted (2026-11-10): Google's own files in `public/fonts/`, subsets latin,
+  latin-ext and cyrillic (`src/styles/fonts.css`), the two latin files preloaded.
 - Scale: ratio 1.25 from 16px: `13 / 16 / 20 / 25 / 31 / 39 / 49 / 61 / 76 / 95` px
   (tokens `--text-xs` through `--text-6xl`)
 - Display: the name in the hero is the only big element on the page,
@@ -248,6 +250,11 @@ Dark only. No light mode for now.
   name, a one-line summary, the year in mono. The whole row is one link to `/work/[slug]`.
   Hover or focus: the name turns `--accent` and a "→" moves 4px right (`--dur-micro`);
   focus also gets the usual focus ring. Hairlines between rows as before.
+- **Icon and link preview** (added 2026-11-10): the favicon is one bright star, a
+  `--star-warm` core with its halo on a `--bg` square (`public/favicon.svg`, with PNG,
+  ICO and apple-touch-icon copies). Link previews use `public/og.png`, 1200×630: the
+  finished hero (name and sky, no header or caption), made by `scripts/og-image.mjs`;
+  re-run it now and then, as the sky grows with every commit.
 - **Project pages** (`/work/[slug]`, ADR 0017): title, then role · team · year · stack in
   mono, links, then problem → what I did → result → what I'd change. Facts come only from
   the résumé; anything else says TODO until written. "← back to work" returns to `/#work`.
@@ -269,8 +276,9 @@ Dark only. No light mode for now.
     "3d model unavailable"). Reduced motion: no idle turning; dragging still works.
   - **Live demo** (added 2026-11-09, physics engine): the one thing wider than the text
     column, at the full page width, 16:10. On screens 960px and up it loads by itself once
-    it's within 200px of the screen; the cover screenshot fills the frame until the demo
-    has loaded, then the demo fades in over it (`--dur-ui`). Caption under it in
+    it's within 200px of the screen and the visitor has first moved the pointer, touched,
+    scrolled with a wheel or typed (2026-11-10: so the demo's own first layout isn't part of
+    this page's load); the cover screenshot fills the frame until the demo has loaded, then the demo fades in over it (`--dur-ui`). Caption under it in
     `--text-xs` mono, `--muted`: "live demo, runs here · open in a new tab ↗". Under 960px
     the demo's own layout doesn't fit, so it stays the screenshot (its own proportions)
     and the caption reads "the demo needs a wider screen · open in a new tab ↗". Framed
