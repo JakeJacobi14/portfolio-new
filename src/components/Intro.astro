@@ -4,10 +4,14 @@ import ShootingStar from "./ShootingStar.astro";
 ---
 <section class="intro" aria-labelledby="intro-title" data-hero>
   <div class="text">
-    <p class="greeting mono" data-frame>
-      <span class="mn" lang="mn" tabindex="0" aria-describedby="greeting-tip">сайн уу</span>, I'm
-      <span class="tip" id="greeting-tip" role="tooltip" aria-hidden="true">hello, in Mongolian</span>
-    </p>
+    <!-- The tooltip sits beside the line, not in it, so a screen reader reads "сайн уу,
+         I'm" and gives the translation as the description of "сайн уу". -->
+    <div class="greet">
+      <p class="greeting mono" data-frame>
+        <span class="mn" lang="mn" tabindex="0" aria-describedby="greeting-tip">сайн уу</span>, I'm
+      </p>
+      <span class="tip mono" id="greeting-tip" role="tooltip" aria-hidden="true">hello, in Mongolian</span>
+    </div>
     <h1 id="intro-title" data-frame data-type>Jake Jacobi</h1>
     <p class="tagline mono" data-frame>software engineer · building software that sees, thinks &amp; moves</p>
   </div>
@@ -32,7 +36,8 @@ import ShootingStar from "./ShootingStar.astro";
      Each line is only as wide as its text, so the build-in frames fit it tightly. */
   .text > * { width: fit-content; max-width: 100%; }
 
-  .greeting { position: relative; color: var(--muted); }
+  .greet { position: relative; }
+  .greeting { color: var(--muted); }
   .mn {
     text-decoration: underline dotted;
     text-decoration-color: color-mix(in srgb, var(--muted) 60%, transparent);
@@ -54,8 +59,8 @@ import ShootingStar from "./ShootingStar.astro";
     pointer-events: none;
     transition: opacity var(--dur-micro) var(--ease);
   }
-  .mn:hover ~ .tip,
-  .mn:focus ~ .tip { opacity: 1; }
+  .greet:has(.mn:hover) .tip,
+  .greet:has(.mn:focus) .tip { opacity: 1; }
 
   h1 {
     margin-top: var(--space-3);

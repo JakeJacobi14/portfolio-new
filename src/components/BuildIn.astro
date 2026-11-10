@@ -318,7 +318,7 @@
       const c = this.caret;
       c.style.opacity = "1";
       for (let i = 0; i < spans.length; i++) {
-        spans[i].style.visibility = "visible";
+        spans[i].style.opacity = "";
         const r = box(spans[i]);
         c.style.height = `${r.h}px`;
         c.style.transform = `translate(${r.x + r.w}px, ${r.y}px)`;
@@ -410,7 +410,9 @@
       for (const ch of text) {
         const s = document.createElement("span");
         s.textContent = ch;
-        s.style.visibility = "hidden";
+        // Transparent rather than hidden: the text stays readable by screen readers (and
+        // gives links their names) while it waits to be typed.
+        s.style.opacity = "0";
         el.append(s);
       }
       d.typed.set(el, text);
