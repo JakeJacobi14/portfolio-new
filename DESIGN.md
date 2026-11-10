@@ -251,8 +251,10 @@ Dark only. No light mode for now.
   Hover or focus: the name turns `--accent` and a "→" moves 4px right (`--dur-micro`);
   focus also gets the usual focus ring. Hairlines between rows as before.
 - **Icon and link preview** (added 2026-11-10): the favicon is one bright star, a
-  `--star-warm` core with its halo on a `--bg` square (`public/favicon.svg`, with PNG,
-  ICO and apple-touch-icon copies). Link previews use `public/og.png`, 1200×630: the
+  `--star-warm` core with its halo and a thin `--bg` ring (for light tab bars), on
+  transparent: a dark square made Safari draw a light outline around it
+  (`public/favicon.svg`, with PNG and ICO copies; the apple-touch-icon keeps a `--bg`
+  square, since iOS needs it opaque). Link previews use `public/og.png`, 1200×630: the
   finished hero (name and sky, no header or caption), made by `scripts/og-image.mjs`;
   re-run it now and then, as the sky grows with every commit.
 - **Project pages** (`/work/[slug]`, ADR 0017): title, then role · team · year · stack in
