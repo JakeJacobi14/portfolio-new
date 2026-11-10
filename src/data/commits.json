@@ -946,5 +946,38 @@
     "insertions": 22,
     "deletions": 15,
     "tags": []
+  },
+  {
+    "hash": "330b507efc0c37099cdf9d072bd4597ba7dc4ddf",
+    "short": "330b507",
+    "date": "2026-11-10T18:00:31-05:00",
+    "subject": "style: give project videos the same layout as images",
+    "type": "style",
+    "files": 1,
+    "insertions": 1,
+    "deletions": 1,
+    "tags": []
+  },
+  {
+    "hash": "3ff4f1eca4947a58c553fc43689783bb0d41c857",
+    "short": "3ff4f1e",
+    "date": "2026-11-10T18:00:31-05:00",
+    "subject": "feat: write chess engine project page with build timelapse",
+    "type": "feat",
+    "files": 3,
+    "insertions": 26,
+    "deletions": 10,
+    "tags": []
+  },
+  {
+    "hash": "6e48d55a916a9bc404100e1618c0c0eff386795a",
+    "short": "6e48d55",
+    "date": "2026-11-10T18:00:31-05:00",
+    "subject": "feat: write physics engine project page with sandbox reel",
+    "type": "feat",
+    "files": 3,
+    "insertions": 23,
+    "deletions": 8,
+    "tags": []
   }
 ]
