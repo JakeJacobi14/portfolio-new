@@ -9,7 +9,10 @@ interface Props {
   /** Which build-in the page has, if any: the home page's, or a project page's (ADR 0020). */
   build?: "home" | "work";
 }
-const { title, description = "Jake Jacobi, computer science student at Purdue.", build } = Astro.props;
+const { title, description = "software engineer · building software that sees, thinks & moves", build } = Astro.props;
+// Absolute URLs for link previews (Open Graph, Twitter) and the canonical link.
+const url = new URL(Astro.url.pathname.replace(/(.)\/$/, "$1"), Astro.site); // no trailing slash, as linked
+const image = new URL("/og.png", Astro.site);
 ---
 <!doctype html>
 <html lang="en">
@@ -19,13 +22,27 @@ const { title, description = "Jake Jacobi, computer science student at Purdue.",
     <meta name="theme-color" content="#171715" />
     <title>{title}</title>
     <meta name="description" content={description} />
+    <link rel="canonical" href={url} />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Schibsted+Grotesk:wght@400..700&display=swap"
-    />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Jake Jacobi" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={url} />
+    <meta property="og:image" content={image} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Jake Jacobi, next to a night sky where every star is a commit to this site." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={image} />
+    <!-- Fonts are self-hosted (src/styles/fonts.css); these two are on every first screen. -->
+    <link rel="preload" href="/fonts/schibsted-grotesk-400-700-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/ibm-plex-mono-400-latin.woff2" as="font" type="font/woff2" crossorigin />
     <!-- Runs before paint (ADR 0019): where the page starts, and whether the build-in plays.
          The build-in (home only) plays on every fresh load and refresh. It's skipped when
          coming back from a project page: by the browser's back button, or by a link to a
