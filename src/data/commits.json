@@ -913,5 +913,16 @@
     "insertions": 80,
     "deletions": 0,
     "tags": []
+  },
+  {
+    "hash": "0091d5fe0b651690b911adae4f875649cbec4a7c",
+    "short": "0091d5f",
+    "date": "2026-11-10T13:14:44-05:00",
+    "subject": "fix: version the favicon links so cached Astro icons are replaced",
+    "type": "fix",
+    "files": 1,
+    "insertions": 4,
+    "deletions": 3,
+    "tags": []
   }
 ]
