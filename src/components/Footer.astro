@@ -3,7 +3,7 @@ interface Props { replay?: boolean }
 const { replay = false } = Astro.props;
 ---
 <footer class="footer mono" data-footer>
-  <p data-type>Built with Claude Code. The process is documented in the repo.</p>
+  <p data-type>Built with Claude Code. The process is documented in <a href="https://github.com/JakeJacobi14/portfolio-new" rel="noopener">the repo</a>.</p>
   {replay && <button type="button" class="replay" data-replay data-frame>Replay build</button>}
 </footer>
 
