@@ -16,18 +16,21 @@ order: 2
 
 ## Problem
 
-TODO
+Project ECHO is a student research drone that photographs farm fields and analyzes the images
+for crop health. I co-founded it with an aerospace engineering student and an electrical
+engineering student because we wanted a project that combined hardware and software. Purdue's
+agriculture department began supporting it in fall 2026.
 
 ## What I did
 
-- Co-founded a three-person agricultural UAV team, and worked with faculty to secure a funding commitment of $5,000.
-- Developed a Python/OpenCV prototype to estimate plant stand coverage, and analyzed labeled crop imagery.
-- Coordinated technical outreach, and planned a UI, GPS flight tracking, 3D reconstruction and crop-health analysis.
+- Lead the software, while my teammates lead the drone's hardware.
+- Secured $5,000 in research funding with our faculty advisors.
+- Built a Python and OpenCV prototype that estimates plant stand coverage from pixel color, and tested it on thousands of crop images from private and public datasets.
+- Designed the software pipeline: GPS mapping of the field, an automated flight path that captures images at set intervals, crop-health analysis, and a 3D reconstruction of the field from the overlapping photos.
+- Chose a standard RGB camera over a multispectral one. It costs far less and still gives accurate results, and multispectral is an option for a later version.
 
 ## Result
 
-TODO
-
-## What I'd change
-
-TODO
+The project is ongoing. The main challenge is integration: the flight controller, mapping
+software and analysis tools come from different sources, some of them dated, and they all have
+to work together within a tight budget and weight limit without losing data accuracy.

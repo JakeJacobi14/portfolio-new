@@ -34,7 +34,7 @@ rest of the project turning it into a bot that could beat me.
 - Rewrote the board from Unity GameObjects on an 8×8 grid to a flat array of 64 squares, which made move generation much faster.
 - Planned the rewrite around special moves. Castling and en passant had been painful to add to the first version, so the new engine supported them, along with sliding pieces, from the start.
 - Built six versions of the bot. The first picked random legal moves. Later ones added piece values, minimax with alpha-beta pruning, quiescence search, piece-square tables, an opening book, king-safety checks and deeper search in the endgame.
-- Learned mostly from Sebastian Lague's videos and the Chess Programming Wiki and its Discord. AI tools weren't much help back then, so I barely used them.
+- Learned mostly from Sebastian Lague's videos and the Chess Programming Wiki and its Discord.
 
 ## Result
 

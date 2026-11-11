@@ -14,18 +14,24 @@ order: 1
 
 ## Problem
 
-TODO
+Purdue's Electric Vehicle Club builds an autonomous electric go-kart to race in the Autonomous
+Karting Series. I was on the three-person computer vision team, which turned the kart's camera
+feed into track data for the team that planned the racing line.
 
 ## What I did
 
-- Developed Python/OpenCV perception for an autonomous EV go-kart, including object detection and lane recognition.
-- TODO
+- Wrote a Python and OpenCV pipeline that finds the edges of the track in each frame, using color filtering, edge detection and a top-down warp of the image, then fitting lines to trace the curves.
+- Estimated the hidden edge on sharp turns, when only one side of the track is in view, from the visible edge and the track's known width.
+- Output the angle to each side of the track, which the racing team used to choose the line.
+- Optimized it to run in real time on the kart's onboard Jetson.
+- Worked in a codebase shared across the club's teams, using Git and Docker.
 
 ## Result
 
-- The team placed 1st of 9 international teams at the 2026 Autonomous Karting Series US National Grand Prix.
-- 1st in qualifying, with the fastest lap (1:03).
+- The team placed 1st of 9 teams from the US and Canada at the 2026 Autonomous Karting Series US National Grand Prix.
+- The kart was also 1st in qualifying, with the fastest lap (1:03).
 
 ## What I'd change
 
-TODO
+I'd get more involved with the other teams. The better I understood the rest of the kart, the
+better I could have tuned the vision system for it.
