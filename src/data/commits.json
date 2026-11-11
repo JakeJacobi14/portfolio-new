@@ -1045,5 +1045,16 @@
     "insertions": 59,
     "deletions": 0,
     "tags": []
+  },
+  {
+    "hash": "a0bd88af3792097a8fcab558797b40dd50831346",
+    "short": "a0bd88a",
+    "date": "2026-11-11T16:34:52-05:00",
+    "subject": "feat: add itch.io to contact links",
+    "type": "feat",
+    "files": 1,
+    "insertions": 1,
+    "deletions": 0,
+    "tags": []
   }
 ]
