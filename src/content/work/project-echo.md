@@ -2,10 +2,10 @@
 title: Project ECHO
 slug: project-echo
 year: "2026"
-role: Co-founder & Software Lead
+role: Software Lead
 team: Three-person agricultural UAV research team, Purdue University
 stack: [Python, OpenCV]
-summary: Agricultural drone research I co-founded, with a Python and OpenCV prototype that estimates plant stand coverage.
+summary: Student research on a crop-health survey drone, where I lead the software, with a Python and OpenCV prototype that estimates plant stand coverage.
 links: []
 model:
   src: /models/project-echo.glb
@@ -17,13 +17,12 @@ order: 2
 ## Problem
 
 Project ECHO is a student research drone that photographs farm fields and analyzes the images
-for crop health. I co-founded it with an aerospace engineering student and an electrical
-engineering student because we wanted a project that combined hardware and software. Purdue's
-agriculture department began supporting it in fall 2026.
+for crop health. I lead the software on a team of three, alongside an aerospace engineering
+student and an electrical engineering student. We wanted a project that combined hardware and
+software, and Purdue's agriculture department began supporting it in fall 2026.
 
 ## What I did
 
-- Lead the software, while my teammates lead the drone's hardware.
 - Secured $5,000 in research funding with our faculty advisors.
 - Built a Python and OpenCV prototype that estimates plant stand coverage from pixel color, and tested it on thousands of crop images from private and public datasets.
 - Designed the software pipeline: GPS mapping of the field, an automated flight path that captures images at set intervals, crop-health analysis, and a 3D reconstruction of the field from the overlapping photos.
