@@ -990,5 +990,38 @@
     "insertions": 1,
     "deletions": 1,
     "tags": []
+  },
+  {
+    "hash": "6fe6c583393c7e3fce2fd926a9b4ac444646ba76",
+    "short": "6fe6c58",
+    "date": "2026-11-11T15:46:25-05:00",
+    "subject": "feat: write Project ECHO and EVC project pages",
+    "type": "feat",
+    "files": 3,
+    "insertions": 25,
+    "deletions": 16,
+    "tags": []
+  },
+  {
+    "hash": "3ff113ebc1d1fc21d3280c065f678f5b9242b45a",
+    "short": "3ff113e",
+    "date": "2026-11-11T15:51:56-05:00",
+    "subject": "feat: write Jarvis project page; drop co-founder wording from ECHO",
+    "type": "feat",
+    "files": 2,
+    "insertions": 21,
+    "deletions": 12,
+    "tags": []
+  },
+  {
+    "hash": "a45c9eee8896e7150bb0d345f6e919513a39aef5",
+    "short": "a45c9ee",
+    "date": "2026-11-11T15:55:02-05:00",
+    "subject": "feat: Jarvis cover from the control panel; tighten page against the repo",
+    "type": "feat",
+    "files": 2,
+    "insertions": 16,
+    "deletions": 14,
+    "tags": []
   }
 ]
