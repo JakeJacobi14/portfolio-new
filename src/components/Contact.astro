@@ -8,6 +8,7 @@ const hasResume = existsSync(join(process.cwd(), "public", "resume.pdf"));
 const links = [
   { label: "linkedin", href: "https://www.linkedin.com/in/jakejacobi/" },
   { label: "github", href: "https://github.com/jakejacobi14" },
+  { label: "itch.io", href: "https://jakejacobi.itch.io" },
   ...(hasResume ? [{ label: "resume.pdf", href: "/resume.pdf" }] : []),
 ];
 ---
