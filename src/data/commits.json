@@ -1089,5 +1089,16 @@
     "insertions": 33,
     "deletions": 157,
     "tags": []
+  },
+  {
+    "hash": "a93b7a9b9d47a7434a9b9a13c1a5ce3a98c31b5b",
+    "short": "a93b7a9",
+    "date": "2026-11-12T11:10:35-05:00",
+    "subject": "feat: wider after hours cards for landscape and panorama photos",
+    "type": "feat",
+    "files": 2,
+    "insertions": 19,
+    "deletions": 8,
+    "tags": []
   }
 ]
