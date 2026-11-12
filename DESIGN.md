@@ -93,7 +93,8 @@ Dark only. No light mode for now.
 - Side gutter: 16px under 640px, 32px above
 - Corner radius: `0` (token `--radius`)
 - After hours cards (ADR 0018): three widths, `224 / 240 / 288px` (`--card-s`, `--card-m`,
-  `--card-l`), aspect 4:5, 24px apart, nudged up or down by 0, 12 or 24px so the strip
+  `--card-l`), aspect 4:5 (landscape photos 5:4 and panoramas 3:2, at the same height, so
+  wider photos get wider cards), 24px apart, nudged up or down by 0, 12 or 24px so the strip
   feels hand-placed. On phones they're scaled to 0.6 (about 134 / 144 / 173px) and the
   strip scrolls sideways with snap points (2 to 3 cards visible). On desktop the section
   is at least one screen tall (`100svh`), its label, counter and strip centered in it.

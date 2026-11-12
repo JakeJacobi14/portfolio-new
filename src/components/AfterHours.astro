@@ -16,14 +16,23 @@ const SLOTS = [
   { size: "m", dy: -24 },
 ];
 
+/** Card shapes (width / height). Every card is as tall as its slot's 4:5 portrait card, so
+ *  wider photos get wider cards: landscape at 5:4, panoramas at 3:2 (still cropped, but far less). */
+const SHAPES = { portrait: 4 / 5, landscape: 5 / 4, wide: 3 / 2 };
+const shapeOf = (ratio: number) => (ratio > 1.8 ? "wide" : ratio > 1.1 ? "landscape" : "portrait");
+
 const cards = await Promise.all(
   photos.map(async (p) => {
+    const shape = shapeOf(p.image.width / p.image.height);
+    const aspect = SHAPES[shape];
+    const cardW = Math.round(576 * (aspect / SHAPES.portrait));
     const [thumb, card, full] = await Promise.all([
-      getImage({ src: p.image, width: 128, format: "png" }), // sampled for the star field
-      getImage({ src: p.image, width: 576, format: "webp" }),
+      // Sampled for the star field, cropped to the card's shape so the stars line up with the photo.
+      getImage({ src: p.image, width: 128, height: Math.round(128 / aspect), fit: "cover", format: "png" }),
+      getImage({ src: p.image, width: cardW, format: "webp" }),
       getImage({ src: p.image, width: 1600, format: "webp" }),
     ]);
-    return { label: p.label, alt: p.alt, order: p.order, thumb: thumb.src, card: card.src, full: full.src };
+    return { label: p.label, alt: p.alt, order: p.order, thumb: thumb.src, card: card.src, full: full.src, aspect, cardW };
   }),
 );
 ---
@@ -40,7 +49,7 @@ const cards = await Promise.all(
           class="card"
           data-card
           data-frame
-          style={`--w: var(--card-${slot.size}); --dy: ${slot.dy}px`}
+          style={`--w: var(--card-${slot.size}); --aspect: ${c.aspect}; --dy: ${slot.dy}px`}
           data-thumb={c.thumb}
           data-full={c.full}
           data-label={c.label}
@@ -48,7 +57,7 @@ const cards = await Promise.all(
           data-seed={c.order}
         >
           <button type="button" class="open" data-open aria-label={`${c.label}. ${c.alt} Open the photo.`}>
-            <img src={c.card} alt="" width="576" height="720" loading="lazy" decoding="async" draggable="false" />
+            <img src={c.card} alt="" width={c.cardW} height={Math.round(c.cardW / c.aspect)} loading="lazy" decoding="async" draggable="false" />
             <canvas aria-hidden="true"></canvas>
           </button>
           <p class="cap mono" aria-hidden="true">{c.label}</p>
@@ -126,7 +135,8 @@ const cards = await Promise.all(
   .strip.free { scroll-snap-type: none; }
   .card {
     flex: none;
-    width: calc(var(--w) * var(--k));
+    /* As tall as a 4:5 card of its slot's width; wider photos get wider cards. */
+    width: calc(var(--w) * var(--k) * 1.25 * var(--aspect, 0.8));
     /* The nudge is a margin (0 to 48px), so transforms stay free for animation. */
     margin-top: calc(var(--space-5) + var(--dy));
     scroll-snap-align: start;
@@ -146,7 +156,7 @@ const cards = await Promise.all(
     position: relative;
     display: block;
     width: 100%;
-    aspect-ratio: 4 / 5;
+    aspect-ratio: var(--aspect, 0.8);
     padding: 0;
     border: 0;
     border-radius: var(--radius);
