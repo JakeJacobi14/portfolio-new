@@ -29,7 +29,7 @@ const cards = await Promise.all(
       getImage({ src: p.image, width: cardW, format: "webp" }),
       getImage({ src: p.image, width: 1600, format: "webp" }),
     ]);
-    return { label: p.label, alt: p.alt, order: p.order, card: card.src, full: full.src, aspect, cardW };
+    return { label: p.label, coords: p.coords, alt: p.alt, order: p.order, card: card.src, full: full.src, aspect, cardW };
   }),
 );
 ---
@@ -49,13 +49,18 @@ const cards = await Promise.all(
           style={`--w: var(--card-${slot.size}); --aspect: ${c.aspect}; --dy: ${slot.dy}px`}
           data-full={c.full}
           data-label={c.label}
+          data-coords={c.coords}
           data-alt={c.alt}
           data-seed={c.order}
         >
           <button type="button" class="open" data-open aria-label={`${c.label}. ${c.alt} Open the photo.`}>
             <img src={c.card} alt="" width={c.cardW} height={Math.round(c.cardW / c.aspect)} loading="lazy" decoding="async" draggable="false" />
+            <span class="bi-frame sel" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
           </button>
-          <p class="cap mono" aria-hidden="true">{c.label}</p>
+          <p class="cap mono" aria-hidden="true">
+            <span>{c.label}</span>
+            <span class="cap-2"><span class="coords">{c.coords}</span><span class="size" data-size></span></span>
+          </p>
         </li>
       );
     })}
@@ -165,6 +170,10 @@ const cards = await Promise.all(
     height: 100%;
   }
   .open img { object-fit: cover; }
+  /* Hover or focus selects the photo the way the build-in's agents select things: the same
+     thin frame and corner handles, with its size in the caption's second line. */
+  .open .sel { inset: 0; opacity: 0; pointer-events: none; transition: opacity var(--dur-micro) var(--ease); }
+  .card:hover .sel, .open:focus-visible .sel { opacity: 1; }
 
   /* The lightbox's ← and → buttons. */
   .arrow {
@@ -182,6 +191,10 @@ const cards = await Promise.all(
   .arrow:disabled { opacity: 0.4; cursor: default; }
   .pos { font-variant-numeric: tabular-nums; }
 
+  .cap > span { display: block; }
+  .cap > .cap-2 { display: flex; justify-content: space-between; gap: var(--space-2); }
+  .size { color: var(--accent); opacity: 0; transition: opacity var(--dur-micro) var(--ease); }
+  .card:hover .size, .card:has(.open:focus-visible) .size { opacity: 1; }
   .cap {
     margin-top: var(--space-2);
     font-size: var(--text-2xs);
@@ -246,6 +259,7 @@ const cards = await Promise.all(
   }
   @media (prefers-reduced-motion: reduce) {
     .strip { transition: none; }
+    .open .sel, .size { transition: none; }
   }
 </style>
 
@@ -384,7 +398,7 @@ const cards = await Promise.all(
       const card = cards[shown];
       lbImg.src = card.dataset.full!;
       lbImg.alt = card.dataset.alt!;
-      lbCap.textContent = card.dataset.label!;
+      lbCap.textContent = card.dataset.coords ? `${card.dataset.label} · ${card.dataset.coords}` : card.dataset.label!;
       lbPos.textContent = `${pad(shown + 1)} / ${pad(cards.length)}`;
     };
     section.addEventListener("click", (e) => {
@@ -412,6 +426,16 @@ const cards = await Promise.all(
       if (!btn) return;
       btn.focus();
     });
+
+    // The frame's size label: the photo's rendered size, as in a design tool.
+    const sizes = () => {
+      for (const c of cards) {
+        const o = c.querySelector<HTMLElement>("[data-open]")!, l = c.querySelector<HTMLElement>("[data-size]")!;
+        l.textContent = `W ${Math.round(o.offsetWidth)} · H ${Math.round(o.offsetHeight)}`;
+      }
+    };
+    sizes();
+    new ResizeObserver(sizes).observe(strip);
 
     // ---- The agent ----
     if (!still.matches) {

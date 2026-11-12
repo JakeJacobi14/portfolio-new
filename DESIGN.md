@@ -289,8 +289,13 @@ Dark only. No light mode for now.
   per visit), and each caption is the place from its folder: city, region or US state.
   - **Cards** show the photo as it is (until 2026-11-12 each was drawn as a star field that
     turned into the photo on hover; removed because it made the photos hard to see).
-    Caption under it in `--text-2xs` mono, `--muted`: `№ 012 · lima, peru` (number from
-    `order`). Click opens a lightbox
+    Caption under it in `--text-2xs` mono, `--muted`, two lines: `№ 012 · lima, peru`
+    (number from `order`), then the place's rough coordinates, `12.0°S 77.0°W`, like a star
+    chart's (a state, region or country gets one point that stands for it).
+  - **Hover / focus:** the photo is selected like the build-in's frames: the same 1px
+    `--accent` frame and corner handles, and its size (`W 420 · H 280`) in `--accent` at the
+    right of the coordinates line. Fades in and out over `--dur-micro`; no fade with reduced
+    motion. The lightbox caption adds the coordinates after the place. Click opens a lightbox
     (`<dialog>`): the full photo and caption on `--bg`, its position (`03 / 08`), ← and →
     buttons ("previous photo" / "next photo") and the arrow keys to step through every
     photo (wrapping around), and a mono "close". Esc closes; focus goes back to the card of
