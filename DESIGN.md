@@ -292,12 +292,8 @@ Dark only. No light mode for now.
     Caption under it in `--text-2xs` mono, `--muted`, two lines: `№ 012 · lima, peru`
     (number from `order`), then the place's rough coordinates, `12.0°S 77.0°W`, like a star
     chart's (a state, region or country gets one point that stands for it).
-  - **Click** opens a lightbox (shared with `/after-hours`, `Lightbox.astro`), built by the
-    build-in's agents each time it opens: the cursor drags a frame out to the photo's size
-    (450ms, with its `W · H` label), the photo rises in (`--dur-ui`), the caption is typed
-    (12ms a character) with the place's coordinates after it, and the agent steps away.
-    Stepping with ← / → just swaps the photo; closing or stepping mid-build finishes it at
-    once; no build with reduced motion. The lightbox itself
+  - **Click** opens a lightbox (shared with `/after-hours`, `Lightbox.astro`; the caption
+    adds the place's coordinates). The lightbox
     (`<dialog>`) holds the full photo and caption on `--bg`, its position (`03 / 08`), ← and →
     buttons ("previous photo" / "next photo") and the arrow keys to step through every
     photo (wrapping around), and a mono "close". Esc closes; focus goes back to the card of

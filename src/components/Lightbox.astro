@@ -6,7 +6,7 @@
   <img data-lb-img alt="" />
   <div class="box-bar mono">
     <p id="lb-cap" data-lb-cap></p>
-    <div class="box-nav" data-lb-nav>
+    <div class="box-nav">
       <button type="button" class="arrow" data-lb-prev aria-label="previous photo">←</button>
       <span class="pos" data-lb-pos></span>
       <button type="button" class="arrow" data-lb-next aria-label="next photo">→</button>
@@ -23,7 +23,6 @@
     background: var(--bg);
     border: 1px solid color-mix(in srgb, var(--muted) 35%, transparent);
     border-radius: var(--radius);
-    overflow: visible; /* the build's frame handles and cursor reach just past the photo */
   }
   .box::backdrop { background: color-mix(in srgb, var(--bg) 92%, transparent); }
   .box img {
@@ -74,46 +73,3 @@
 
 </style>
 
-<style is:global>
-  /* The agent that builds the lightbox: the build-in's frame, size label and cursor. */
-  .lb-frame {
-    position: absolute;
-    border: 1px solid var(--accent);
-    pointer-events: none;
-  }
-  .lb-frame i {
-    position: absolute;
-    width: 5px;
-    height: 5px;
-    background: var(--bg);
-    border: 1px solid var(--accent);
-  }
-  .lb-frame i:nth-child(1) { left: -3px; top: -3px; }
-  .lb-frame i:nth-child(2) { right: -3px; top: -3px; }
-  .lb-frame i:nth-child(3) { left: -3px; bottom: -3px; }
-  .lb-frame i:nth-child(4) { right: -3px; bottom: -3px; }
-  .lb-size {
-    position: absolute;
-    left: -1px;
-    top: calc(100% + var(--space-1));
-    font-family: var(--font-mono);
-    font-size: var(--text-2xs);
-    letter-spacing: var(--tracking-label);
-    line-height: 1.3;
-    color: var(--accent);
-    white-space: nowrap;
-  }
-  .lb-cursor {
-    position: absolute;
-    top: 0;
-    left: 0;
-    pointer-events: none;
-    overflow: visible;
-  }
-  .lb-cursor path {
-    fill: var(--accent);
-    stroke: var(--bg);
-    stroke-width: 1;
-    stroke-linejoin: round;
-  }
-</style>
