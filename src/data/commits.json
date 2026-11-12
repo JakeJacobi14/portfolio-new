@@ -1067,5 +1067,27 @@
     "insertions": 9,
     "deletions": 3,
     "tags": []
+  },
+  {
+    "hash": "0655d527c66a0843f8983938ad29a9d5f7ba71f9",
+    "short": "0655d52",
+    "date": "2026-11-12T00:09:43-05:00",
+    "subject": "feat: temporary after hours options to compare (dev-only switcher)",
+    "type": "feat",
+    "files": 1,
+    "insertions": 173,
+    "deletions": 6,
+    "tags": []
+  },
+  {
+    "hash": "5658aa76997a52ebea522e1a1ee311c133688988",
+    "short": "5658aa7",
+    "date": "2026-11-12T10:40:12-05:00",
+    "subject": "feat: after hours stars converge into the photo on hover",
+    "type": "feat",
+    "files": 3,
+    "insertions": 33,
+    "deletions": 157,
+    "tags": []
   }
 ]
