@@ -1,0 +1,119 @@
+---
+// The after hours lightbox (DESIGN.md §8): one per page, opened by openLightbox() in
+// src/lib/lightbox.ts from the home page strip and from /after-hours.
+---
+<dialog class="box" data-lightbox aria-labelledby="lb-cap">
+  <img data-lb-img alt="" />
+  <div class="box-bar mono">
+    <p id="lb-cap" data-lb-cap></p>
+    <div class="box-nav" data-lb-nav>
+      <button type="button" class="arrow" data-lb-prev aria-label="previous photo">←</button>
+      <span class="pos" data-lb-pos></span>
+      <button type="button" class="arrow" data-lb-next aria-label="next photo">→</button>
+      <form method="dialog"><button class="close">close</button></form>
+    </div>
+  </div>
+</dialog>
+<style>
+  .box {
+    width: min(100% - 2 * var(--gutter), 960px);
+    max-height: calc(100svh - 2 * var(--space-6));
+    padding: 0;
+    color: var(--fg);
+    background: var(--bg);
+    border: 1px solid color-mix(in srgb, var(--muted) 35%, transparent);
+    border-radius: var(--radius);
+    overflow: visible; /* the build's frame handles and cursor reach just past the photo */
+  }
+  .box::backdrop { background: color-mix(in srgb, var(--bg) 92%, transparent); }
+  .box img {
+    display: block;
+    width: 100%;
+    max-height: calc(100svh - 2 * var(--space-6) - var(--space-8));
+    object-fit: contain;
+  }
+  .box-bar {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--space-2) var(--space-4);
+    padding: var(--space-3) var(--space-4);
+    color: var(--muted);
+  }
+  .box-nav { display: flex; align-items: center; gap: var(--space-3); }
+  .close {
+    padding: 0;
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: 0;
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.2em;
+    transition: color var(--dur-micro) var(--ease);
+  }
+  .close:hover { color: var(--accent); }
+
+  /* The lightbox's ← and → buttons. */
+  .arrow {
+    min-width: var(--space-6);
+    padding: var(--space-1) var(--space-2);
+    font: inherit;
+    color: var(--muted);
+    background: none;
+    border: 1px solid color-mix(in srgb, var(--muted) 35%, transparent);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: color var(--dur-micro) var(--ease);
+  }
+  .arrow:hover:not(:disabled) { color: var(--accent); }
+  .arrow:disabled { opacity: 0.4; cursor: default; }
+  .pos { font-variant-numeric: tabular-nums; }
+
+</style>
+
+<style is:global>
+  /* The agent that builds the lightbox: the build-in's frame, size label and cursor. */
+  .lb-frame {
+    position: absolute;
+    border: 1px solid var(--accent);
+    pointer-events: none;
+  }
+  .lb-frame i {
+    position: absolute;
+    width: 5px;
+    height: 5px;
+    background: var(--bg);
+    border: 1px solid var(--accent);
+  }
+  .lb-frame i:nth-child(1) { left: -3px; top: -3px; }
+  .lb-frame i:nth-child(2) { right: -3px; top: -3px; }
+  .lb-frame i:nth-child(3) { left: -3px; bottom: -3px; }
+  .lb-frame i:nth-child(4) { right: -3px; bottom: -3px; }
+  .lb-size {
+    position: absolute;
+    left: -1px;
+    top: calc(100% + var(--space-1));
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    letter-spacing: var(--tracking-label);
+    line-height: 1.3;
+    color: var(--accent);
+    white-space: nowrap;
+  }
+  .lb-cursor {
+    position: absolute;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+    overflow: visible;
+  }
+  .lb-cursor path {
+    fill: var(--accent);
+    stroke: var(--bg);
+    stroke-width: 1;
+    stroke-linejoin: round;
+  }
+</style>

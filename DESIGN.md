@@ -292,11 +292,13 @@ Dark only. No light mode for now.
     Caption under it in `--text-2xs` mono, `--muted`, two lines: `№ 012 · lima, peru`
     (number from `order`), then the place's rough coordinates, `12.0°S 77.0°W`, like a star
     chart's (a state, region or country gets one point that stands for it).
-  - **Hover / focus:** the photo is selected like the build-in's frames: the same 1px
-    `--accent` frame and corner handles, and its size (`W 420 · H 280`) in `--accent` at the
-    right of the coordinates line. Fades in and out over `--dur-micro`; no fade with reduced
-    motion. The lightbox caption adds the coordinates after the place. Click opens a lightbox
-    (`<dialog>`): the full photo and caption on `--bg`, its position (`03 / 08`), ← and →
+  - **Click** opens a lightbox (shared with `/after-hours`, `Lightbox.astro`), built by the
+    build-in's agents each time it opens: the cursor drags a frame out to the photo's size
+    (450ms, with its `W · H` label), the photo rises in (`--dur-ui`), the caption is typed
+    (12ms a character) with the place's coordinates after it, and the agent steps away.
+    Stepping with ← / → just swaps the photo; closing or stepping mid-build finishes it at
+    once; no build with reduced motion. The lightbox itself
+    (`<dialog>`) holds the full photo and caption on `--bg`, its position (`03 / 08`), ← and →
     buttons ("previous photo" / "next photo") and the arrow keys to step through every
     photo (wrapping around), and a mono "close". Esc closes; focus goes back to the card of
     the photo you ended on, scrolled into view.
@@ -318,7 +320,7 @@ Dark only. No light mode for now.
     reduced motion.
   - **Reduced motion or no JS:** a static strip of plain photos.
   - **`/after-hours`:** every photo at once, in strip
-    order: a collage of four columns (three under 900px, two under 480px), each photo at its
+    order (each opens the same lightbox, coordinates under each caption): a collage of four columns (three under 900px, two under 480px), each photo at its
     own shape with its `№` caption under it, 24px apart. A mono "← back to after hours"
     returns to `/#after-hours`; the title and counter sit above. No build-in.
   - **Images** go through Astro's image pipeline (WebP); the re-encode drops EXIF and GPS,

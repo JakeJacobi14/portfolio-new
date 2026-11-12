@@ -1,18 +1,23 @@
 ---
-// /after-hours (DESIGN.md §8): every after hours photo at once, as plain photos (no star
-// field), in strip order. Reached from the counter above the strip on the home page.
+// /after-hours (DESIGN.md §8): every after hours photo at once, in strip order. Reached from
+// the counter above the strip on the home page. A click opens the same lightbox as the strip.
 import { getImage } from "astro:assets";
 import Base from "../layouts/Base.astro";
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
+import Lightbox from "../components/Lightbox.astro";
 import { getPhotos } from "../lib/after-hours";
 
 const { photos, count } = await getPhotos();
 const tiles = await Promise.all(
   photos.map(async (p) => {
     // Two sizes: a phone's two columns need far less than a 2× desktop column.
-    const img = await getImage({ src: p.image, widths: [280, 560], format: "webp" });
-    return { label: p.label, alt: p.alt, src: img.src, srcset: img.srcSet.attribute, w: img.attributes.width, h: img.attributes.height };
+    const [img, full] = await Promise.all([
+      getImage({ src: p.image, widths: [280, 560], format: "webp" }),
+      getImage({ src: p.image, width: 1600, format: "webp" }),
+    ]);
+    const caption = p.coords ? `${p.label} · ${p.coords}` : p.label;
+    return { label: p.label, coords: p.coords, caption, alt: p.alt, src: img.src, srcset: img.srcSet.attribute, w: img.attributes.width, h: img.attributes.height, full: full.src };
   }),
 );
 ---
@@ -28,14 +33,17 @@ const tiles = await Promise.all(
       {tiles.map((t, i) => (
         <li>
           <figure>
-            {/* The first photo is the largest thing on the first screen: load it first. */}
-            <img src={t.src} srcset={t.srcset} sizes="(max-width: 479px) 46vw, (max-width: 899px) 31vw, 270px" alt={t.alt} width={t.w} height={t.h}
-              loading={i === 0 ? "eager" : "lazy"} fetchpriority={i === 0 ? "high" : "auto"} decoding="async" />
-            <figcaption class="mono">{t.label}</figcaption>
+            <button type="button" class="open" data-open data-full={t.full} data-alt={t.alt} data-caption={t.caption} aria-label={`${t.label}. ${t.alt} Open the photo.`}>
+              {/* The first photo is the largest thing on the first screen: load it first. */}
+              <img src={t.src} srcset={t.srcset} sizes="(max-width: 479px) 46vw, (max-width: 899px) 31vw, 270px" alt="" width={t.w} height={t.h}
+                loading={i === 0 ? "eager" : "lazy"} fetchpriority={i === 0 ? "high" : "auto"} decoding="async" />
+            </button>
+            <figcaption class="mono" aria-hidden="true"><span>{t.label}</span><span>{t.coords}</span></figcaption>
           </figure>
         </li>
       ))}
     </ol>
+    <Lightbox />
   </main>
   <Footer />
 </Base>
@@ -76,6 +84,15 @@ const tiles = await Promise.all(
   @media (max-width: 479px) { .collage { columns: 2; } }
   .collage li { break-inside: avoid; margin-bottom: var(--space-5); }
   figure { margin: 0; }
+  .open {
+    display: block;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius);
+    background: none;
+    cursor: zoom-in;
+  }
   img {
     display: block;
     width: 100%;
@@ -88,4 +105,12 @@ const tiles = await Promise.all(
     font-size: var(--text-2xs);
     color: var(--muted);
   }
+  figcaption span { display: block; }
 </style>
+
+<script>
+  import { openLightbox } from "../lib/lightbox";
+  const opens = [...document.querySelectorAll<HTMLElement>(".collage [data-open]")];
+  const items = opens.map((b) => ({ full: b.dataset.full!, alt: b.dataset.alt!, caption: b.dataset.caption! }));
+  opens.forEach((b, i) => b.addEventListener("click", () => openLightbox(items, i, (at) => opens[at].focus())));
+</script>
