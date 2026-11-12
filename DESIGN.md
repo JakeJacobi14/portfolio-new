@@ -105,10 +105,7 @@ Dark only. No light mode for now.
 - One signature moment (the build-in). Everything else is quiet: fades and small offsets
   only, plus two faint sky details that start after the build-in (§8, ADR 0016) and the
   after hours strip's card swap (§8, ADR 0018).
-- Durations: `150ms` micro (hover, focus), `300ms` UI. An after hours card's stars converge
-  into its photo over `300ms` (`--dur-converge`) and come back slowly after a hover: the
-  photo lingers `2s` (`--dur-linger`), then the stars drift back out over `1.2s`
-  (`--dur-fade-back`). A click star (below) fades out over `1.6s`
+- Durations: `150ms` micro (hover, focus), `300ms` UI. A click star (below) fades out over `1.6s`
   (`--dur-click-star`). The hero builds in about 2.5s;
   measured 2.9s on a 1440×900 desktop (the constellation is the last to finish) and 2.7s on
   a phone. Each later section starts the moment it enters the screen and is done within
@@ -290,23 +287,14 @@ Dark only. No light mode for now.
   counter computed from the data ("8 frames · 1 country"). The counter is a link to
   `/after-hours`, every photo at once (below). Photos are in a shuffled order (fixed, not
   per visit), and each caption is the place from its folder: city, region or US state.
-  - **Star field:** each card shows its photo as tiny points of light on `--bg`: sampled
-    from a small copy of the photo by brightness, 1px, colored `--star-warm`, `--star-cool`
-    or `--star` by the pixel's warmth, opacity following brightness. Caption under it in
-    `--text-2xs` mono, `--muted`: `№ 012 · lima, peru` (number from `order`).
-  - **Resting:** each star sits a little off its spot in the photo (2–8% of the card, in a
-    fixed random direction), so the field reads as loose starlight.
-  - **Hover / focus (converge, chosen 2026-11-12 over none, fade, agent and develop):** the
-    stars fly to their spots and swell to fill them, brightening, over `--dur-converge`
-    (300ms, `--ease`); the real photo takes over in the last 40%. When the pointer or focus
-    leaves, the photo stays for `--dur-linger` (2s), then the stars drift back out over
-    `--dur-fade-back` (1.2s), so moving across the strip leaves a trail of photos that
-    slowly turn back into stars. Click opens a lightbox
+  - **Cards** show the photo as it is (until 2026-11-12 each was drawn as a star field that
+    turned into the photo on hover; removed because it made the photos hard to see).
+    Caption under it in `--text-2xs` mono, `--muted`: `№ 012 · lima, peru` (number from
+    `order`). Click opens a lightbox
     (`<dialog>`): the full photo and caption on `--bg`, its position (`03 / 08`), ← and →
     buttons ("previous photo" / "next photo") and the arrow keys to step through every
     photo (wrapping around), and a mono "close". Esc closes; focus goes back to the card of
-    the photo you ended on, scrolled into view; if the lightbox was opened by mouse or
-    touch, that card shows its star field again until hovered.
+    the photo you ended on, scrolled into view.
   - **The strip** holds every photo and scrolls sideways (about four cards fit on desktop), with
     snap points on touch only; a trackpad glides freely with its momentum: trackpad,
     shift + mouse wheel, mouse drag (`grab` / `grabbing` cursor;
@@ -324,7 +312,7 @@ Dark only. No light mode for now.
     scroll or use; if you start scrolling mid-pull it lets go at once. None on touch or for
     reduced motion.
   - **Reduced motion or no JS:** a static strip of plain photos.
-  - **`/after-hours`:** every photo at once as plain photos (no star field), in strip
+  - **`/after-hours`:** every photo at once, in strip
     order: a collage of four columns (three under 900px, two under 480px), each photo at its
     own shape with its `№` caption under it, 24px apart. A mono "← back to after hours"
     returns to `/#after-hours`; the title and counter sit above. No build-in.
