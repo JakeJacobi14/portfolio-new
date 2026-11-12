@@ -220,9 +220,15 @@
       if (!el) return;
       this.d.restore(el);
       el.style.opacity = "0";
-      if (delayMs) await this.wait(delayMs);
-      el.style.opacity = "";
-      await this.play(el, { opacity: [0, 1], transform: ["translateY(4px)", "none"] }, { duration: 0.3 });
+      try {
+        if (delayMs) await this.wait(delayMs);
+        el.style.opacity = "";
+        await this.play(el, { opacity: [0, 1], transform: ["translateY(4px)", "none"] }, { duration: 0.3 });
+      } finally {
+        // Stopped partway (Skip, scrolled past, the build finishing): never leave it hidden.
+        el.style.opacity = "";
+        el.style.transform = "";
+      }
     }
     spawn(x: number, y: number, quick = true) {
       const a = new Agent(this, quick);
