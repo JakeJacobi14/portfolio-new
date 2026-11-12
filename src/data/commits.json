@@ -1144,5 +1144,38 @@
     "insertions": 41,
     "deletions": 203,
     "tags": []
+  },
+  {
+    "hash": "64f13d26f36cc4322d6272c98715afb4bbaacf76",
+    "short": "64f13d2",
+    "date": "2026-11-12T11:30:26-05:00",
+    "subject": "feat: after hours captions get coordinates, hover selects the photo with a design-tool frame",
+    "type": "feat",
+    "files": 3,
+    "insertions": 65,
+    "deletions": 6,
+    "tags": []
+  },
+  {
+    "hash": "ac38447205bfd78149b841964ef7cf150885822f",
+    "short": "ac38447",
+    "date": "2026-11-12T11:35:02-05:00",
+    "subject": "feat: agents build the after hours lightbox; gallery photos open it too",
+    "type": "feat",
+    "files": 5,
+    "insertions": 335,
+    "deletions": 134,
+    "tags": []
+  },
+  {
+    "hash": "1a589fa2c76fa49e20bb008e29e0b09eb328d6e1",
+    "short": "1a589fa",
+    "date": "2026-11-12T11:37:41-05:00",
+    "subject": "revert: no build animation in the lightbox (too much on every open)",
+    "type": "other",
+    "files": 3,
+    "insertions": 6,
+    "deletions": 156,
+    "tags": []
   }
 ]
