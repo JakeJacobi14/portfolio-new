@@ -1177,5 +1177,16 @@
     "insertions": 6,
     "deletions": 156,
     "tags": []
+  },
+  {
+    "hash": "197b13037c3772dc1e4b739d8e3042dc02c21a46",
+    "short": "197b130",
+    "date": "2026-11-12T11:39:47-05:00",
+    "subject": "content: trim the black bars off after hours #29 (new york)",
+    "type": "other",
+    "files": 1,
+    "insertions": 0,
+    "deletions": 0,
+    "tags": []
   }
 ]
