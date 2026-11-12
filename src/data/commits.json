@@ -1056,5 +1056,16 @@
     "insertions": 1,
     "deletions": 0,
     "tags": []
+  },
+  {
+    "hash": "1744508467525f56e458aa3aefd80882f888ef89",
+    "short": "1744508",
+    "date": "2026-11-12T00:05:50-05:00",
+    "subject": "fix: work row summaries stay hidden when the build-in is interrupted",
+    "type": "fix",
+    "files": 1,
+    "insertions": 9,
+    "deletions": 3,
+    "tags": []
   }
 ]
