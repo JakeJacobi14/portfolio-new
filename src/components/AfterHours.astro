@@ -68,6 +68,12 @@ const cards = await Promise.all(
       </div>
     </div>
   </dialog>
+  {import.meta.env.DEV && (
+    <nav class="ah-switch mono" aria-label="after hours options (dev only)" data-ah-switch>
+      <span>hours:</span>
+      {["none", "fade", "converge", "agent", "develop"].map((v) => <a href={`?hours=${v}#after-hours`} data-v={v}>{v}</a>)}
+    </nav>
+  )}
 </section>
 
 <style>
@@ -179,6 +185,52 @@ const cards = await Promise.all(
   .has-field .open.calm:not(:hover) img { opacity: 0; transition: opacity var(--dur-fade-back) var(--ease); }
   .has-field .open.calm:not(:hover) canvas { opacity: 1; transition: opacity var(--dur-fade-back) var(--ease); }
 
+  /* TEMPORARY options (see VARIANTS in the script). Converge and agent are driven frame by
+     frame from the script, so the stylesheet's fades stand aside for them. */
+  .has-field.v-converge .open img, .has-field.v-converge .open canvas,
+  .has-field.v-agent .open img, .has-field.v-agent .open canvas { transition: none !important; }
+  .has-field.v-agent .open img { z-index: 1; clip-path: inset(0 100% 100% 0); }
+  .has-field.v-agent .open :global(.ah-frame) { z-index: 2; pointer-events: none; }
+  /* Develop: the photo washes in from the top like a print in the tray; the stars give way
+     ahead of it, and come back the same way when it goes. */
+  @property --dev { syntax: "<percentage>"; inherits: true; initial-value: 0%; }
+  .has-field.v-develop .open { --dev: 0%; transition: --dev var(--dur-fade-back) var(--ease); }
+  .has-field.v-develop .open:hover, .has-field.v-develop .open:focus-visible, .has-field.v-develop .open.linger {
+    --dev: 130%;
+    transition: --dev var(--dur-fade-back) var(--ease);
+  }
+  .has-field.v-develop .open.calm:not(:hover) { --dev: 0%; transition: --dev var(--dur-fade-back) var(--ease); }
+  .has-field.v-develop .open img {
+    opacity: 1 !important;
+    transition: none !important;
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(var(--dev) - 30%), transparent var(--dev));
+    mask-image: linear-gradient(to bottom, #000 calc(var(--dev) - 30%), transparent var(--dev));
+  }
+  .has-field.v-develop .open canvas {
+    opacity: 1 !important;
+    transition: none !important;
+    -webkit-mask-image: linear-gradient(to bottom, transparent calc(var(--dev) - 30%), #000 var(--dev));
+    mask-image: linear-gradient(to bottom, transparent calc(var(--dev) - 30%), #000 var(--dev));
+  }
+  /* The switcher (dev server only). */
+  .ah-switch {
+    position: fixed;
+    left: var(--space-4);
+    bottom: var(--space-4);
+    z-index: 20;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--text-2xs);
+    color: var(--muted);
+    background: var(--bg);
+    border: 1px solid color-mix(in srgb, var(--muted) 35%, transparent);
+    border-radius: var(--radius);
+  }
+  .ah-switch a { color: inherit; }
+  .ah-switch a[aria-current] { color: var(--accent); }
+
   /* The lightbox's ← and → buttons. */
   .arrow {
     min-width: var(--space-6);
@@ -265,6 +317,19 @@ const cards = await Promise.all(
 
 <script>
   const ADVANCE_EVERY = 6000, QUIET = 15000; // ms
+  // TEMPORARY: options for how a card goes from stars to photo, compared with the dev-only
+  // switcher (like the palette comparison, ADR 0005). Remove the losers once one is picked.
+  const VARIANTS = ["none", "fade", "converge", "agent", "develop"] as const;
+  type Variant = (typeof VARIANTS)[number];
+  const VARIANT: Variant = (() => {
+    const asked = new URLSearchParams(location.search).get("hours");
+    try {
+      if (asked && (VARIANTS as readonly string[]).includes(asked)) { localStorage.setItem("ah-variant", asked); return asked as Variant; }
+      const kept = localStorage.getItem("ah-variant");
+      if (kept && (VARIANTS as readonly string[]).includes(kept)) return kept as Variant;
+    } catch {}
+    return "fade";
+  })();
   const EASE = "cubic-bezier(0.2, 0, 0, 1)"; // --ease
 
   const section = document.querySelector<HTMLElement>("[data-hours]");
@@ -294,7 +359,8 @@ const cards = await Promise.all(
   };
 
   // ---- Star field: points of light sampled from a small copy of the photo ----
-  type Pt = { x: number; y: number; r: number; a: number; c: string };
+  type Pt = { x: number; y: number; r: number; a: number; c: string; sx: number; sy: number };
+  const cell = new Map<HTMLElement, number>(); // a star's share of the card: 1 / thumb width
   const fields = new Map<HTMLElement, Pt[]>();
   const css = getComputedStyle(root);
   const COLORS = {
@@ -316,6 +382,8 @@ const cards = await Promise.all(
     ctx.drawImage(img, 0, 0);
     const px = ctx.getImageData(0, 0, w, h).data;
     const rand = rng(Number(card.dataset.seed) * 7919);
+    const loose = rng(Number(card.dataset.seed) * 104729); // scatter for the converge option
+    cell.set(card, 1 / w);
     // Brightness relative to the photo itself: half stretched to its own range, half its rank
     // among its pixels. Dark night photos then still show their sky and small lights, not
     // only their brightest spot.
@@ -337,8 +405,10 @@ const cards = await Promise.all(
         const L = 0.5 * Math.min(1, Math.max(0, (v - lo) / (hi - lo))) + 0.5 * Math.pow(rank(v), 2);
         if (rand() >= Math.pow(L, 1.6) * 0.75) continue;
         const warmth = (r - b) / 255;
+        const px0 = (x + rand()) / w, py0 = (y + rand()) / h;
+        const ang = loose() * Math.PI * 2, dist = 0.02 + loose() * 0.06;
         pts.push({
-          x: (x + rand()) / w, y: (y + rand()) / h,
+          x: px0, y: py0, sx: px0 + Math.cos(ang) * dist, sy: py0 + Math.sin(ang) * dist,
           r: 0.3 + L * 0.5, a: 0.12 + L * 0.88,
           c: warmth > 0.08 ? COLORS.warm : warmth < -0.06 ? COLORS.cool : COLORS.star,
         });
@@ -348,7 +418,8 @@ const cards = await Promise.all(
     return pts;
   }
 
-  function draw(card: HTMLElement, pts: Pt[]) {
+  /** Draw the field. `p` (converge option): 0 = stars resting loose, 1 = condensed into the photo. */
+  function draw(card: HTMLElement, pts: Pt[], p = VARIANT === "converge" ? 0 : -1) {
     const canvas = card.querySelector("canvas")!;
     const dpr = Math.min(2, devicePixelRatio || 1);
     const w = canvas.clientWidth, h = canvas.clientHeight;
@@ -357,11 +428,24 @@ const cards = await Promise.all(
     const ctx = canvas.getContext("2d")!;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, h);
+    if (p < 0) {
+      for (const pt of pts) {
+        ctx.globalAlpha = pt.a;
+        ctx.fillStyle = pt.c;
+        ctx.beginPath();
+        ctx.arc(pt.x * w, pt.y * h, pt.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      return;
+    }
+    // Converge: each star travels from its loose resting place to its spot in the photo and
+    // swells to fill its share of the card, so the starlight condenses into the picture.
+    const e = ease(p), full = (cell.get(card) ?? 1 / 128) * w * 0.75;
     for (const pt of pts) {
-      ctx.globalAlpha = pt.a;
+      ctx.globalAlpha = pt.a + (1 - pt.a) * e * 0.6;
       ctx.fillStyle = pt.c;
       ctx.beginPath();
-      ctx.arc(pt.x * w, pt.y * h, pt.r, 0, Math.PI * 2);
+      ctx.arc((pt.sx + (pt.x - pt.sx) * e) * w, (pt.sy + (pt.y - pt.sy) * e) * h, pt.r + (full - pt.r) * e, 0, Math.PI * 2);
       ctx.fill();
     }
   }
@@ -518,8 +602,9 @@ const cards = await Promise.all(
     });
 
     // ---- Star fields and the agent ----
+    document.querySelector(`[data-ah-switch] [data-v="${VARIANT}"]`)?.setAttribute("aria-current", "true");
     if (!still.matches) {
-      strip.classList.add("has-field");
+      if (VARIANT !== "none") strip.classList.add("has-field", `v-${VARIANT}`);
       // A photo you've looked at stays for --dur-linger after the pointer or focus leaves,
       // then its stars fade back (DESIGN.md §8).
       const ms = (v: string) => (v.trim().endsWith("ms") ? parseFloat(v) : parseFloat(v) * 1000); // "2000ms" or "2s"
@@ -533,7 +618,89 @@ const cards = await Promise.all(
         };
         btn.addEventListener("pointerleave", (e) => { if (e.pointerType === "mouse") stay(); });
         btn.addEventListener("blur", () => { if (!btn.classList.contains("calm")) stay(); });
+        if (VARIANT === "converge" || VARIANT === "agent") {
+          const go = () => animateCard(btn);
+          for (const ev of ["pointerenter", "pointerleave", "focus", "blur", "keydown"]) btn.addEventListener(ev, go);
+          new MutationObserver(go).observe(btn, { attributes: true, attributeFilter: ["class"] });
+        }
       }
+
+      // ---- Converge and agent options: a card's progress from stars (0) to photo (1) ----
+      const UI = ms(getComputedStyle(root).getPropertyValue("--dur-ui")) || 300;
+      const BACK = ms(getComputedStyle(root).getPropertyValue("--dur-fade-back")) || 1200;
+      const IN = VARIANT === "agent" ? 450 : 2 * UI; // the agent drags its frame like the build-in's
+      const clamp = (v: number) => Math.max(0, Math.min(1, v));
+      const looking = (btn: HTMLElement) =>
+        (btn.matches(":hover") || btn.matches(":focus-visible") || btn.classList.contains("linger"))
+        && !(btn.classList.contains("calm") && !btn.matches(":hover"));
+      type State = { p: number; raf: number; mode: "in" | "out"; t: number; frame?: HTMLElement; cursor?: SVGSVGElement };
+      const states = new Map<HTMLElement, State>();
+      function animateCard(btn: HTMLElement) {
+        const st = states.get(btn) ?? { p: 0, raf: 0, mode: "out" as const, t: 0 };
+        states.set(btn, st);
+        if (st.raf) return;
+        st.t = performance.now();
+        const step = (now: number) => {
+          const dt = now - st.t; st.t = now;
+          const want = looking(btn);
+          if (want && st.mode === "out") { st.mode = "in"; if (VARIANT === "agent") st.p = 0; }
+          if (!want && st.mode === "in" && st.p >= 1) st.mode = "out";
+          st.p = clamp(st.p + (st.mode === "in" ? dt / IN : -dt / BACK));
+          render(btn, st);
+          const done = (st.mode === "in" && st.p >= 1 && want) || (st.mode === "out" && st.p <= 0);
+          st.raf = done ? 0 : requestAnimationFrame(step);
+          if (done && st.mode === "in" && VARIANT === "agent") landed(st);
+        };
+        st.raf = requestAnimationFrame(step);
+      }
+      function render(btn: HTMLElement, st: State) {
+        const card = btn.closest<HTMLElement>("[data-card]")!;
+        const img = btn.querySelector("img")!, canvas = btn.querySelector("canvas")!;
+        if (VARIANT === "converge") {
+          const f = fields.get(card);
+          if (f) draw(card, f, st.p);
+          const photo = clamp((st.p - 0.6) / 0.4);
+          img.style.opacity = String(photo);
+          canvas.style.opacity = String(1 - photo);
+          return;
+        }
+        // Agent: a cursor drags a frame out from the top-left corner and the photo is set
+        // inside it as it grows; leaving, the photo fades and the stars come back.
+        if (st.mode === "out") { img.style.opacity = String(st.p); return; }
+        const e = ease(st.p), w = btn.clientWidth, h = btn.clientHeight;
+        img.style.opacity = "1";
+        img.style.clipPath = `inset(0 ${(1 - e) * 100}% ${(1 - e) * 100}% 0)`;
+        if (!st.frame) {
+          st.frame = document.createElement("div");
+          st.frame.className = "bi-frame ah-frame";
+          st.frame.innerHTML = "<i></i><i></i><i></i><i></i><span class='bi-size'></span>";
+          btn.append(st.frame);
+          st.cursor = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+          st.cursor.setAttribute("class", "ah-cursor");
+          st.cursor.setAttribute("viewBox", "0 0 14 20");
+          st.cursor.setAttribute("width", "14");
+          st.cursor.setAttribute("height", "20");
+          st.cursor.setAttribute("aria-hidden", "true");
+          st.cursor.innerHTML = '<path d="M1 1 L1 16 L5 12.5 L8 19 L10.5 18 L7.6 11.6 L12.5 11.6 Z" />';
+          btn.append(st.cursor);
+        }
+        const fw = Math.max(16, w * e), fh = Math.max(10, h * e);
+        Object.assign(st.frame.style, { left: "0px", top: "0px", width: `${fw}px`, height: `${fh}px`, opacity: "1" });
+        st.frame.querySelector(".bi-size")!.textContent = `W ${Math.round(fw)} · H ${Math.round(fh)}`;
+        st.cursor!.style.opacity = "1";
+        st.cursor!.style.transform = `translate(${fw}px, ${fh}px)`;
+      }
+      function landed(st: State) {
+        const f = st.frame, c = st.cursor;
+        st.frame = undefined; st.cursor = undefined;
+        f?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: UI, easing: EASE, fill: "forwards" }).finished.then(() => f.remove());
+        if (c) {
+          const from = c.style.transform;
+          c.animate([{ opacity: 1, transform: from }, { opacity: 0, transform: `${from} translate(24px, 40px)` }], { duration: UI, easing: EASE, fill: "forwards" })
+            .finished.then(() => c.remove());
+        }
+      }
+
       const paint = async (card: HTMLElement) => draw(card, await sample(card));
       // Fields are made once the page has loaded, and only for cards within about a strip's
       // width of view (one small image each, so 50 photos don't all load up front); redrawn on resize.
