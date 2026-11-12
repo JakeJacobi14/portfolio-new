@@ -106,7 +106,7 @@ Dark only. No light mode for now.
   only, plus two faint sky details that start after the build-in (§8, ADR 0016) and the
   after hours strip's card swap (§8, ADR 0018).
 - Durations: `150ms` micro (hover, focus), `300ms` UI. An after hours card's stars converge
-  into its photo over `450ms` (`--dur-converge`) and come back slowly after a hover: the
+  into its photo over `300ms` (`--dur-converge`) and come back slowly after a hover: the
   photo lingers `2s` (`--dur-linger`), then the stars drift back out over `1.2s`
   (`--dur-fade-back`). A click star (below) fades out over `1.6s`
   (`--dur-click-star`). The hero builds in about 2.5s;
@@ -298,7 +298,7 @@ Dark only. No light mode for now.
     fixed random direction), so the field reads as loose starlight.
   - **Hover / focus (converge, chosen 2026-11-12 over none, fade, agent and develop):** the
     stars fly to their spots and swell to fill them, brightening, over `--dur-converge`
-    (450ms, `--ease`); the real photo takes over in the last 40%. When the pointer or focus
+    (300ms, `--ease`); the real photo takes over in the last 40%. When the pointer or focus
     leaves, the photo stays for `--dur-linger` (2s), then the stars drift back out over
     `--dur-fade-back` (1.2s), so moving across the strip leaves a trail of photos that
     slowly turn back into stars. Click opens a lightbox
