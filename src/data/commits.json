@@ -1133,5 +1133,16 @@
     "insertions": 36,
     "deletions": 36,
     "tags": []
+  },
+  {
+    "hash": "120c2f5f733783145e6bbe11b81745a78cbeb911",
+    "short": "120c2f5",
+    "date": "2026-11-12T11:21:45-05:00",
+    "subject": "refactor: after hours shows plain photos (remove the star field)",
+    "type": "refactor",
+    "files": 4,
+    "insertions": 41,
+    "deletions": 203,
+    "tags": []
   }
 ]
