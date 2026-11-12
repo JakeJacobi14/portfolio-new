@@ -58,6 +58,7 @@
   /* Motion (DESIGN.md §7) */
   --dur-micro: 150ms;
   --dur-ui: 300ms;
+  --dur-converge: 450ms; /* after hours: the stars converging into the photo on hover */
   --dur-linger: 2000ms; /* after hours: how long a hovered photo stays before the stars return */
   --dur-fade-back: 1200ms; /* after hours: the stars fading back in */
   --dur-click-star: 1600ms; /* a click star fading out (DESIGN.md §7) */

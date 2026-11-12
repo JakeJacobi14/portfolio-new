@@ -104,9 +104,10 @@ Dark only. No light mode for now.
 - One signature moment (the build-in). Everything else is quiet: fades and small offsets
   only, plus two faint sky details that start after the build-in (§8, ADR 0016) and the
   after hours strip's card swap (§8, ADR 0018).
-- Durations: `150ms` micro (hover, focus), `300ms` UI. The after hours star fields come
-  back slowly after a hover: the photo lingers `2s` (`--dur-linger`), then the stars fade
-  in over `1.2s` (`--dur-fade-back`). A click star (below) fades out over `1.6s`
+- Durations: `150ms` micro (hover, focus), `300ms` UI. An after hours card's stars converge
+  into its photo over `450ms` (`--dur-converge`) and come back slowly after a hover: the
+  photo lingers `2s` (`--dur-linger`), then the stars drift back out over `1.2s`
+  (`--dur-fade-back`). A click star (below) fades out over `1.6s`
   (`--dur-click-star`). The hero builds in about 2.5s;
   measured 2.9s on a 1440×900 desktop (the constellation is the last to finish) and 2.7s on
   a phone. Each later section starts the moment it enters the screen and is done within
@@ -292,8 +293,12 @@ Dark only. No light mode for now.
     from a small copy of the photo by brightness, 1px, colored `--star-warm`, `--star-cool`
     or `--star` by the pixel's warmth, opacity following brightness. Caption under it in
     `--text-2xs` mono, `--muted`: `№ 012 · lima, peru` (number from `order`).
-  - **Hover / focus:** the real photo crossfades in (`--dur-ui`). When the pointer or focus
-    leaves, the photo stays for `--dur-linger` (2s), then the star field fades back over
+  - **Resting:** each star sits a little off its spot in the photo (2–8% of the card, in a
+    fixed random direction), so the field reads as loose starlight.
+  - **Hover / focus (converge, chosen 2026-11-12 over none, fade, agent and develop):** the
+    stars fly to their spots and swell to fill them, brightening, over `--dur-converge`
+    (450ms, `--ease`); the real photo takes over in the last 40%. When the pointer or focus
+    leaves, the photo stays for `--dur-linger` (2s), then the stars drift back out over
     `--dur-fade-back` (1.2s), so moving across the strip leaves a trail of photos that
     slowly turn back into stars. Click opens a lightbox
     (`<dialog>`): the full photo and caption on `--bg`, its position (`03 / 08`), ← and →
