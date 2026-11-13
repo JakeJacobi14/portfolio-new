@@ -1234,10 +1234,32 @@
     "tags": []
   },
   {
+    "hash": "f4ccc9cc592ae056cdc3c6863a20d66598a5277c",
+    "short": "f4ccc9c",
+    "date": "2026-11-13T15:42:06-05:00",
+    "subject": "Revise README for portfolio site information",
+    "type": "other",
+    "files": 1,
+    "insertions": 49,
+    "deletions": 30,
+    "tags": []
+  },
+  {
     "hash": "484babe2461fd51d26b5c955e839d8e6857c602c",
     "short": "484babe",
     "date": "2026-11-13T16:22:52-05:00",
     "subject": "content: contact email is now hi@jakejacobi.me",
+    "type": "other",
+    "files": 1,
+    "insertions": 1,
+    "deletions": 1,
+    "tags": []
+  },
+  {
+    "hash": "1dfdc3a26a3bbffc18895f26303eeba078faef24",
+    "short": "1dfdc3a",
+    "date": "2026-11-13T16:23:10-05:00",
+    "subject": "content: drop the Built with Claude Code line from the footer",
     "type": "other",
     "files": 1,
     "insertions": 1,
