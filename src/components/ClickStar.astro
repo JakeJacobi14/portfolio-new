@@ -1,7 +1,8 @@
 ---
 // Click star (DESIGN.md §7): a click on the page leaves a star where you clicked, which pops
-// in and fades out, with one very quiet chime, the site's only sound. The star is pinned to
-// the page, so it scrolls away with the content you clicked on. Not on a 3D model, links, buttons or
+// in with one very quiet chime, the site's only sound. Stars clicked close together join into
+// a figure (the constellation builder), which fades out once you pause. Stars are pinned to
+// the page, so they scroll away with the content you clicked on. Not on a 3D model, links, buttons or
 // form fields, which already do something.
 ---
 <style is:global>
@@ -22,6 +23,17 @@
     inset: 5.5px; /* a 5px core in the middle */
     border-radius: 50%;
     background: var(--star-warm);
+  }
+  /* Constellation builder: a line between two click stars, like the milestone
+     figures in the sky. 1px hairline in --muted at 35%, values already in DESIGN.md. */
+  .click-line {
+    position: absolute;
+    z-index: 59; /* under the stars */
+    height: 1px;
+    margin-top: -0.5px;
+    transform-origin: 0 50%;
+    background: color-mix(in srgb, var(--muted) 35%, transparent);
+    pointer-events: none;
   }
 </style>
 
@@ -66,37 +78,89 @@
     }
   }
 
-  // ---- The star ----
-  const stars: HTMLElement[] = [];
-  async function place(x: number, y: number) {
-    const star = document.createElement("span");
-    star.className = "click-star";
-    star.setAttribute("aria-hidden", "true");
-    star.style.left = `${x}px`;
-    star.style.top = `${y}px`;
-    document.body.append(star);
-    stars.push(star);
-    if (stars.length > MAX) stars.shift()!.remove();
+  // ---- The constellation builder (DESIGN.md §7) ----
+  // Stars clicked close together, one after another, join into a figure: each new star is
+  // linked to the nearest star already in it (so figures branch like the sky's milestone
+  // figures instead of zig-zagging). A figure stays while you keep adding to it; once you
+  // pause, or click far away, the whole figure fades out together.
+  const HOLD = 3000; // ms a figure waits for its next star before fading
+  const reach = () => Math.min(240, innerWidth * 0.45); // px: farther than this starts a new figure
 
-    const easing = css("--ease") || "ease-out";
-    try {
-      if (!still.matches) {
-        await star.animate(
-          [{ opacity: 0, transform: "scale(0.4)" }, { opacity: 1, transform: "scale(1)" }],
-          { duration: ms(css("--dur-ui")) || 300, easing, fill: "forwards" },
-        ).finished;
-      }
-      await star.animate([{ opacity: 1 }, { opacity: 0 }], {
-        duration: ms(css("--dur-click-star")) || 1600,
-        easing,
-        fill: "forwards",
-      }).finished;
-    } catch {
-      // Cancelled (the star was removed early).
+  type Star = { x: number; y: number; el: HTMLElement };
+  type Figure = { stars: Star[]; parts: HTMLElement[]; timer: number };
+  let open: Figure | null = null;
+
+  const easing = () => css("--ease") || "ease-out";
+
+  function makeStar(x: number, y: number): Star {
+    const el = document.createElement("span");
+    el.className = "click-star";
+    el.setAttribute("aria-hidden", "true");
+    el.style.left = `${x}px`;
+    el.style.top = `${y}px`;
+    document.body.append(el);
+    const keyframes = still.matches
+      ? [{ opacity: 0 }, { opacity: 1 }]
+      : [{ opacity: 0, transform: "scale(0.4)" }, { opacity: 1, transform: "scale(1)" }];
+    el.animate(keyframes, { duration: ms(css("--dur-ui")) || 300, easing: easing(), fill: "forwards" });
+    return { x, y, el };
+  }
+
+  function makeLine(a: Star, b: Star): HTMLElement {
+    const el = document.createElement("span");
+    el.className = "click-line";
+    el.setAttribute("aria-hidden", "true");
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const angle = Math.atan2(dy, dx);
+    el.style.left = `${a.x}px`;
+    el.style.top = `${a.y}px`;
+    el.style.width = `${Math.hypot(dx, dy)}px`;
+    el.style.transform = `rotate(${angle}rad)`;
+    document.body.append(el);
+    // Drawn from the old star out to the new one, like the build-in's "draw".
+    if (!still.matches) {
+      el.animate(
+        [{ transform: `rotate(${angle}rad) scaleX(0)` }, { transform: `rotate(${angle}rad) scaleX(1)` }],
+        { duration: ms(css("--dur-ui")) || 300, easing: easing() },
+      );
     }
-    star.remove();
-    const i = stars.indexOf(star);
-    if (i >= 0) stars.splice(i, 1);
+    return el;
+  }
+
+  async function close(fig: Figure) {
+    clearTimeout(fig.timer);
+    if (open === fig) open = null;
+    const fades = fig.parts.map((el) =>
+      el.animate([{ opacity: 1 }, { opacity: 0 }], {
+        duration: ms(css("--dur-click-star")) || 1600,
+        easing: easing(),
+        fill: "forwards",
+      }).finished.catch(() => {}),
+    );
+    await Promise.all(fades);
+    fig.parts.forEach((el) => el.remove());
+  }
+
+  function place(x: number, y: number) {
+    let nearest: Star | null = null;
+    let best = Infinity;
+    for (const s of open?.stars ?? []) {
+      const d = Math.hypot(s.x - x, s.y - y);
+      if (d < best) [best, nearest] = [d, s];
+    }
+
+    const star = makeStar(x, y);
+    if (open && nearest && best <= reach() && open.stars.length < MAX) {
+      open.parts.push(makeLine(nearest, star), star.el);
+      open.stars.push(star);
+      clearTimeout(open.timer);
+    } else {
+      if (open) void close(open);
+      open = { stars: [star], parts: [star.el], timer: 0 };
+    }
+    const fig = open;
+    fig.timer = window.setTimeout(() => void close(fig), HOLD);
   }
 
   document.addEventListener("click", (e) => {

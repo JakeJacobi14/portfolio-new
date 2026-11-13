@@ -116,9 +116,16 @@ Dark only. No light mode for now.
   button or form field, and not one that ends a text selection) leaves a star where you
   clicked, like a bright constellation star: a 5px core in `--star-warm` with its soft
   halo (3.2× the core, peaking at 28%). It pops in (opacity 0 → 1, scale 0.4 → 1,
-  `--dur-ui`), then fades out over `--dur-click-star` (1.6s). It's pinned to the page, so
-  it scrolls with the content you clicked. At most 12 at once. Reduced
-  motion: the same fade, no pop. Never interactive, hidden from screen readers.
+  `--dur-ui`), then stays. It's pinned to the page, so it scrolls with the content you
+  clicked. Never interactive, hidden from screen readers.
+  **Constellation builder** (added 2026-11-13): stars clicked within 240px of each other
+  (or 45% of the screen width, whichever is less) join into a figure. Each new star links
+  to the nearest star already in it with a 1px `--muted` line at 35%, drawn from the old
+  star out to the new one (`--dur-ui`, `--ease`), so figures branch like the sky's
+  milestone figures. A figure waits 3s for its next star (`HOLD` in `ClickStar.astro`);
+  after that pause, or a click farther away, the whole figure fades out together over
+  `--dur-click-star` (1.6s). At most 12 stars per figure. Reduced motion: stars and lines
+  appear without the pop or the draw, and the fade still plays.
 - **Sound:** the site is silent except for the click star's chime: one very quiet, high
   bell made in the browser (Web Audio, no files): a random note of G6 A6 C7 D7 E7 with a
   softer fifth and a faint shimmer two octaves up, ringing out over about a second. No sound for the build-in, the agents or
