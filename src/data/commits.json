@@ -1210,5 +1210,27 @@
     "insertions": 4,
     "deletions": 4,
     "tags": []
+  },
+  {
+    "hash": "817ba9d58e68ccc609ed4da340ee7d2fb10a85d2",
+    "short": "817ba9d",
+    "date": "2026-11-13T15:18:17-05:00",
+    "subject": "feat: constellation builder, click stars join into figures",
+    "type": "feat",
+    "files": 2,
+    "insertions": 103,
+    "deletions": 32,
+    "tags": []
+  },
+  {
+    "hash": "002c642de11be3e85bd4fe8bb0ce4f31f7f34983",
+    "short": "002c642",
+    "date": "2026-11-13T15:18:17-05:00",
+    "subject": "chore: move to jakejacobi.me, add robots.txt and sitemap",
+    "type": "chore",
+    "files": 3,
+    "insertions": 24,
+    "deletions": 1,
+    "tags": []
   }
 ]
