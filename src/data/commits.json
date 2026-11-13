@@ -1232,5 +1232,16 @@
     "insertions": 24,
     "deletions": 1,
     "tags": []
+  },
+  {
+    "hash": "484babe2461fd51d26b5c955e839d8e6857c602c",
+    "short": "484babe",
+    "date": "2026-11-13T16:22:52-05:00",
+    "subject": "content: contact email is now hi@jakejacobi.me",
+    "type": "other",
+    "files": 1,
+    "insertions": 1,
+    "deletions": 1,
+    "tags": []
   }
 ]
